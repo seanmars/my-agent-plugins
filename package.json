@@ -1,0 +1,17 @@
+{
+  "name": "@seanmars/my-agent-plugins",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mars"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/generate-marketplace.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "tsx": "4.21.0",
+    "typescript": "6.0.2"
+  }
+}

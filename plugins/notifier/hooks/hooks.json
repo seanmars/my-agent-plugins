@@ -1,0 +1,55 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion|ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ]
+  }
+}

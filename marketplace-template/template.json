@@ -1,0 +1,8 @@
+{
+  "name": "my-agent-plugins",
+  "description": "Directory of popular AI extensions including development tools, productivity plugins, and MCP integrations",
+  "owner": {
+    "name": "mars"
+  },
+  "plugins": []
+}

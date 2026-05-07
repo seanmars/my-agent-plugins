@@ -1,0 +1,18 @@
+{
+  "name": "my-agent-plugins",
+  "description": "Directory of popular AI extensions including development tools, productivity plugins, and MCP integrations",
+  "owner": {
+    "name": "mars"
+  },
+  "plugins": [
+    {
+      "name": "notifier",
+      "source": "./plugins/notifier",
+      "description": "Windows Toast notifications for Claude Code Stop / Notification events",
+      "category": "notifications",
+      "author": {
+        "name": "seanmars"
+      }
+    }
+  ]
+}

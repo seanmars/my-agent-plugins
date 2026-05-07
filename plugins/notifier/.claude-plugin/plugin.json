@@ -1,0 +1,9 @@
+{
+  "name": "notifier",
+  "version": "0.2.0",
+  "description": "Windows Toast notifications for Claude Code Stop / Notification events",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["notifications"]
+}
