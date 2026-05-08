@@ -15,10 +15,10 @@ using Windows.Data.Xml.Dom;
 //
 // CLI mode (manual / scripted use):
 //   Argv-driven toast for testing the pipeline without a hook event.
-//     dotnet run <path-to>/notify.cs -- <title> [body] [--icon <path>] [--icon-crop circle|square] [--app-id <id>]
+//     dotnet run <path-to>/notify.cs -- <title> [body] [--icon <path>] [--icon-crop circle|square] [--app-id <id>] [--duration short|long]
 //
 // Environment overrides (hook mode only):
-//   CLAUDE_NOTIFY_TITLE, CLAUDE_NOTIFY_APP_ID, CLAUDE_NOTIFY_ICON, CLAUDE_NOTIFY_ICON_CROP
+//   CLAUDE_NOTIFY_TITLE, CLAUDE_NOTIFY_APP_ID, CLAUDE_NOTIFY_ICON, CLAUDE_NOTIFY_ICON_CROP, CLAUDE_NOTIFY_DURATION
 
 if (args.Length == 0 || args[0] != "--hook") return RunCli(args);
 
@@ -44,6 +44,7 @@ try
     string title = Environment.GetEnvironmentVariable("CLAUDE_NOTIFY_TITLE") ?? string.Empty;
     string appId = Environment.GetEnvironmentVariable("CLAUDE_NOTIFY_APP_ID") ?? "ClaudeCode.Notifier";
     string iconCrop = Environment.GetEnvironmentVariable("CLAUDE_NOTIFY_ICON_CROP") ?? "square";
+    string duration = Environment.GetEnvironmentVariable("CLAUDE_NOTIFY_DURATION") ?? "long";
     string iconPath = Environment.GetEnvironmentVariable("CLAUDE_NOTIFY_ICON")
         ?? (string.IsNullOrEmpty(pluginRoot) ? "" : Path.Combine(pluginRoot, "app.ico"));
 
@@ -65,7 +66,7 @@ try
 
     string body = $"{reason}";
 
-    ShowToast(title, body, iconPath, iconCrop, appId);
+    ShowToast(title, body, iconPath, iconCrop, appId, duration);
 }
 catch
 {
@@ -79,18 +80,20 @@ static int RunCli(string[] args)
 {
     if (args.Length == 0 || args[0] is "-h" or "--help")
     {
-        Console.WriteLine("Usage: dotnet run notify.cs -- <title> [body] [--icon <path>] [--icon-crop circle|square] [--app-id <id>]");
+        Console.WriteLine("Usage: dotnet run notify.cs -- <title> [body] [--icon <path>] [--icon-crop circle|square] [--app-id <id>] [--duration short|long]");
         Console.WriteLine("  title         Notification title (required)");
         Console.WriteLine("  body          Notification body text (optional)");
         Console.WriteLine("  --icon        Icon image: local path, file:// URI or http(s):// URL");
         Console.WriteLine("  --icon-crop   Icon crop style: circle or square (default: square)");
         Console.WriteLine("  --app-id      Application User Model ID (default: ClaudeCode.Notifier)");
+        Console.WriteLine("  --duration    Toast duration: short (~5s) or long (~25s) (default: long)");
         return args.Length == 0 ? 1 : 0;
     }
 
     string? iconPath = null;
     string iconCrop = "square";
     string appId = "ClaudeCode.Notifier";
+    string duration = "long";
     var positional = new List<string>();
 
     for (int i = 0; i < args.Length; i++)
@@ -105,6 +108,9 @@ static int RunCli(string[] args)
                 break;
             case "--app-id" when i + 1 < args.Length:
                 appId = args[++i];
+                break;
+            case "--duration" when i + 1 < args.Length:
+                duration = args[++i];
                 break;
             default:
                 positional.Add(args[i]);
@@ -121,7 +127,7 @@ static int RunCli(string[] args)
     var title = positional[0];
     var body = positional.Count > 1 ? positional[1] : string.Empty;
 
-    ShowToast(title, body, iconPath ?? "", iconCrop, appId);
+    ShowToast(title, body, iconPath ?? "", iconCrop, appId, duration);
     return 0;
 }
 
@@ -199,7 +205,7 @@ static string? GetFirstQuestion(JsonElement root)
     return null;
 }
 
-static void ShowToast(string title, string body, string iconPath, string iconCrop, string appId)
+static void ShowToast(string title, string body, string iconPath, string iconCrop, string appId, string duration)
 {
     string iconXml = "";
     if (!string.IsNullOrWhiteSpace(iconPath))
@@ -213,8 +219,14 @@ static void ShowToast(string title, string body, string iconPath, string iconCro
         iconXml = $"<image placement=\"appLogoOverride\"{cropAttr} src=\"{System.Security.SecurityElement.Escape(src)}\"/>";
     }
 
+    // Toast schema only allows "short" or "long"; anything else would make
+    // LoadXml throw, so fall back to "long" for unknown values.
+    var durationAttr = duration.Equals("short", StringComparison.OrdinalIgnoreCase)
+        ? " duration=\"short\""
+        : " duration=\"long\"";
+
     var xml = $"""
-<toast>
+<toast{durationAttr}>
   <visual>
     <binding template="ToastGeneric">
       {iconXml}
