@@ -1,0 +1,9 @@
+{
+  "name": "andrej-karpathy-skills",
+  "version": "0.0.1",
+  "description": "A plugin that provides tips and insights from Andrej Karpathy's talks and writings.",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["andrej karpathy", "skills", "tips", "insights"]
+}
