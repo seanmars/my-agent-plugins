@@ -6,6 +6,15 @@
   },
   "plugins": [
     {
+      "name": "andrej-karpathy-skills",
+      "source": "./plugins/andrej-karpathy-skills",
+      "description": "A plugin that provides tips and insights from Andrej Karpathy's talks and writings.",
+      "category": "andrej-karpathy",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
       "name": "notifier",
       "source": "./plugins/notifier",
       "description": "Windows Toast notifications for Claude Code Stop / Notification events",
