@@ -1,21 +1,32 @@
-#:property TargetFramework=net10.0-windows10.0.19041.0
+#:property TargetFramework=net10.0
 
+using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
-using Windows.UI.Notifications;
-using Windows.Data.Xml.Dom;
 
 // Dual-mode entrypoint. Mode is selected by the first arg, NOT by stdin
 // redirect status: a non-interactive shell wrapper can hand the script an
 // open-but-idle stdin pipe, and Console.In.ReadToEnd() would deadlock there.
 //
 // Hook mode (invoked from hooks.json):
-//   Reads a Claude Code hook event JSON from stdin and fires a state-aware Windows Toast.
+//   Reads a Claude Code hook event JSON from stdin and fires a state-aware native toast.
 //   Always exits 0 so toast failures never disrupt Claude Code.
 //     dotnet run <path-to>/notify.cs -- --hook <plugin-root>
 //
 // CLI mode (manual / scripted use):
 //   Argv-driven toast for testing the pipeline without a hook event.
 //     dotnet run <path-to>/notify.cs -- <title> [body] [--icon <path>] [--icon-crop circle|square] [--app-id <id>] [--duration short|long]
+//
+// Cross-platform dispatch:
+//   Windows -> powershell.exe + WinRT ToastNotificationManager (full feature set:
+//             icon, --icon-crop, --app-id, --duration).
+//   macOS   -> terminal-notifier if installed (custom icon via --icon, --app-id
+//             becomes -group so newer notifications replace older ones from the
+//             same context); otherwise falls back to osascript "display notification"
+//             (title + body only). osascript path requires granting Script Editor
+//             notification permission in System Settings on first run.
+//             --icon-crop and --duration are always ignored on macOS.
+//   Other   -> silent no-op.
 //
 // Environment overrides (hook mode only):
 //   CLAUDE_NOTIFY_TITLE, CLAUDE_NOTIFY_APP_ID, CLAUDE_NOTIFY_ICON, CLAUDE_NOTIFY_ICON_CROP, CLAUDE_NOTIFY_DURATION
@@ -83,10 +94,10 @@ static int RunCli(string[] args)
         Console.WriteLine("Usage: dotnet run notify.cs -- <title> [body] [--icon <path>] [--icon-crop circle|square] [--app-id <id>] [--duration short|long]");
         Console.WriteLine("  title         Notification title (required)");
         Console.WriteLine("  body          Notification body text (optional)");
-        Console.WriteLine("  --icon        Icon image: local path, file:// URI or http(s):// URL");
-        Console.WriteLine("  --icon-crop   Icon crop style: circle or square (default: square)");
-        Console.WriteLine("  --app-id      Application User Model ID (default: ClaudeCode.Notifier)");
-        Console.WriteLine("  --duration    Toast duration: short (~5s) or long (~25s) (default: long)");
+        Console.WriteLine("  --icon        Icon image: local path, file:// URI or http(s):// URL (Windows only)");
+        Console.WriteLine("  --icon-crop   Icon crop style: circle or square (default: square; Windows only)");
+        Console.WriteLine("  --app-id      Application User Model ID (default: ClaudeCode.Notifier; Windows only)");
+        Console.WriteLine("  --duration    Toast duration: short (~5s) or long (~25s) (default: long; Windows only)");
         return args.Length == 0 ? 1 : 0;
     }
 
@@ -207,6 +218,22 @@ static string? GetFirstQuestion(JsonElement root)
 
 static void ShowToast(string title, string body, string iconPath, string iconCrop, string appId, string duration)
 {
+    try
+    {
+        if (OperatingSystem.IsWindows())
+            ShowToastWindows(title, body, iconPath, iconCrop, appId, duration);
+        else if (OperatingSystem.IsMacOS())
+            ShowToastMacOS(title, body, iconPath, appId);
+        // Linux/other: silent no-op.
+    }
+    catch
+    {
+        // Swallow; toast failure must not surface as an error.
+    }
+}
+
+static void ShowToastWindows(string title, string body, string iconPath, string iconCrop, string appId, string duration)
+{
     string iconXml = "";
     if (!string.IsNullOrWhiteSpace(iconPath))
     {
@@ -237,7 +264,134 @@ static void ShowToast(string title, string body, string iconPath, string iconCro
 </toast>
 """;
 
-    var doc = new XmlDocument();
-    doc.LoadXml(xml);
-    ToastNotificationManager.CreateToastNotifier(appId).Show(new ToastNotification(doc));
+    // PowerShell single-quoted strings: '' is the only escape needed.
+    string xmlForPs = xml.Replace("'", "''");
+    string appIdForPs = appId.Replace("'", "''");
+
+    string ps =
+        "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null\n" +
+        "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType=WindowsRuntime] | Out-Null\n" +
+        "$xml = New-Object Windows.Data.Xml.Dom.XmlDocument\n" +
+        $"$xml.LoadXml('{xmlForPs}')\n" +
+        $"[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{appIdForPs}').Show([Windows.UI.Notifications.ToastNotification]::new($xml))\n";
+
+    // -EncodedCommand sidesteps cmd.exe / PowerShell quoting entirely.
+    // PowerShell expects UTF-16LE (== Encoding.Unicode) base64.
+    string encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(ps));
+
+    var psi = new ProcessStartInfo("powershell.exe")
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+    };
+    psi.ArgumentList.Add("-NoProfile");
+    psi.ArgumentList.Add("-EncodedCommand");
+    psi.ArgumentList.Add(encoded);
+    using var p = Process.Start(psi);
+    p?.WaitForExit(10000);
+}
+
+static void ShowToastMacOS(string title, string body, string iconPath, string appId)
+{
+    string? tn = FindTerminalNotifier();
+    if (tn != null)
+        RunTerminalNotifier(tn, title, body, iconPath, appId);
+    else
+        RunOsascript(title, body);
+}
+
+static string? FindTerminalNotifier()
+{
+    // Check Homebrew default install paths first (Apple Silicon, Intel) so we
+    // don't pay a /usr/bin/which fork on every notification.
+    string[] common = {
+        "/opt/homebrew/bin/terminal-notifier",
+        "/usr/local/bin/terminal-notifier",
+    };
+    foreach (var p in common)
+        if (File.Exists(p)) return p;
+
+    try
+    {
+        var psi = new ProcessStartInfo("/usr/bin/which")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        psi.ArgumentList.Add("terminal-notifier");
+        using var p = Process.Start(psi);
+        if (p == null) return null;
+        string output = p.StandardOutput.ReadToEnd().Trim();
+        p.WaitForExit(2000);
+        return p.ExitCode == 0 && File.Exists(output) ? output : null;
+    }
+    catch
+    {
+        return null;
+    }
+}
+
+static void RunTerminalNotifier(string exe, string title, string body, string iconPath, string appId)
+{
+    var psi = new ProcessStartInfo(exe)
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+    };
+    psi.ArgumentList.Add("-title");
+    psi.ArgumentList.Add(title);
+    psi.ArgumentList.Add("-message");
+    psi.ArgumentList.Add(body);
+
+    // -group dedupes: a new notification with the same group replaces the
+    // older banner instead of stacking. Keeps Notification Center tidy when
+    // hooks fire in rapid succession.
+    if (!string.IsNullOrWhiteSpace(appId))
+    {
+        psi.ArgumentList.Add("-group");
+        psi.ArgumentList.Add(appId);
+    }
+
+    // -appIcon is best-effort on modern macOS: Apple restricts which apps can
+    // override the sender icon. Defaults to app.ico which terminal-notifier
+    // can't render — skip unless the user pointed CLAUDE_NOTIFY_ICON at a
+    // raster format (PNG/JPG).
+    if (!string.IsNullOrWhiteSpace(iconPath) && File.Exists(iconPath) && !iconPath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+    {
+        psi.ArgumentList.Add("-appIcon");
+        psi.ArgumentList.Add(Path.GetFullPath(iconPath));
+    }
+
+    using var p = Process.Start(psi);
+    p?.WaitForExit(5000);
+}
+
+static void RunOsascript(string title, string body)
+{
+    // AppleScript "..." literals reject raw newlines; collapse them to spaces.
+    static string Sanitize(string s) =>
+        s.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
+
+    // AppleScript string literal: \ -> \\, " -> \"
+    static string Esc(string s) => Sanitize(s).Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    string script = $"display notification \"{Esc(body)}\" with title \"{Esc(title)}\"";
+
+    var psi = new ProcessStartInfo("osascript")
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+    };
+    psi.ArgumentList.Add("-e");
+    psi.ArgumentList.Add(script);
+    using var p = Process.Start(psi);
+    p?.WaitForExit(5000);
 }
