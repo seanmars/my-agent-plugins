@@ -31,6 +31,12 @@ using System.Text.Json;
 // Environment overrides (hook mode only):
 //   CLAUDE_NOTIFY_TITLE, CLAUDE_NOTIFY_APP_ID, CLAUDE_NOTIFY_ICON, CLAUDE_NOTIFY_ICON_CROP, CLAUDE_NOTIFY_DURATION
 
+// Claude Code emits UTF-8 hook JSON, but Windows defaults Console.InputEncoding
+// to the OEM code page (e.g. CP950 / CP936), which mangles non-ASCII bytes
+// before JsonDocument ever sees them. Force UTF-8 on both streams.
+Console.InputEncoding = Encoding.UTF8;
+Console.OutputEncoding = Encoding.UTF8;
+
 if (args.Length == 0 || args[0] != "--hook") return RunCli(args);
 
 string hookPluginRoot = args.Length > 1 ? args[1] : "";
