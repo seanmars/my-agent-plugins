@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${CLAUDE_PLUGIN_ROOT}"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${CLAUDE_PLUGIN_ROOT}"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${CLAUDE_PLUGIN_ROOT}"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${CLAUDE_PLUGIN_ROOT}"
           }
         ]
       }
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "dotnet run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.cs -- --hook ${CLAUDE_PLUGIN_ROOT}"
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${CLAUDE_PLUGIN_ROOT}"
           }
         ]
       }
