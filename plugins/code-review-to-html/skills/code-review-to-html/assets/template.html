@@ -959,6 +959,9 @@ pre::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
                 <button class="icon-btn" id="collapseAll" title="全部折疊" aria-label="全部折疊">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
                 </button>
+                <button class="icon-btn" id="clearChecks" title="清除所有勾選" aria-label="清除所有勾選">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5"/></svg>
+                </button>
                 <button class="icon-btn" id="themeToggle" title="切換主題" aria-label="切換主題">
                     <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.93" y2="6.93"/><line x1="17.07" y1="17.07" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.93" y2="17.07"/><line x1="17.07" y1="6.93" x2="19.07" y2="4.93"/></svg>
                     <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -1612,6 +1615,16 @@ __REPORT_MARKDOWN__
         });
         document.getElementById("collapseAll").addEventListener("click", () => {
             document.querySelectorAll(".issue.expanded").forEach(c => toggleExpand(c.dataset.id));
+        });
+        document.getElementById("clearChecks").addEventListener("click", () => {
+            const checkedCards = document.querySelectorAll(".issue.checked");
+            if (!checkedCards.length) {
+                showToast("沒有已勾選的項目");
+                return;
+            }
+            if (!window.confirm("確定要清除所有勾選嗎? (共 " + checkedCards.length + " 項)")) return;
+            checkedCards.forEach(c => toggleCheck(c.dataset.id, false));
+            showToast("已清除 " + checkedCards.length + " 項勾選");
         });
 
         document.querySelectorAll(".toc-filter").forEach(btn => {
