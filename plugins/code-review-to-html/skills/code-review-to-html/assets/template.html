@@ -986,14 +986,23 @@ __REPORT_MARKDOWN__
 (function () {
     "use strict";
 
-    const STORAGE_KEY = "cr-report-state-v1";
-    const THEME_KEY = "cr-report-theme-v1";
+    const STORAGE_KEY = "cr-report";
+    const THEME_KEY = "cr-report-theme";
+    const FILE_KEY = (function () {
+        const path = window.location.pathname || "";
+        const name = path.split("/").pop().split("\\").pop();
+        try {
+            return decodeURIComponent(name) || "default";
+        } catch (e) {
+            return name || "default";
+        }
+    })();
 
     /* ============ STATE ============ */
     let state = loadState();
     let activeFilter = "all";
 
-    function loadState() {
+    function loadAllState() {
         try {
             return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
         } catch (e) {
@@ -1001,8 +1010,15 @@ __REPORT_MARKDOWN__
         }
     }
 
+    function loadState() {
+        const all = loadAllState();
+        return all[FILE_KEY] || {};
+    }
+
     function saveState() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        const all = loadAllState();
+        all[FILE_KEY] = state;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     }
 
     function getIssue(id) {

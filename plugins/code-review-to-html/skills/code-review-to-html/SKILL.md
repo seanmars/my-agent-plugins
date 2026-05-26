@@ -88,6 +88,6 @@ The template uses three coordinated parts:
   - `parseReport(md)` extracts `title`, `intro`, `branch`, `priorityLabels`, `issues`, `summary`.
   - `renderIssues(issues, priorityLabels)` builds the cards + TOC.
   - `populateHeader(parsed)` writes the page title, main heading, sidebar subline, and intro sentence.
-  - State (`localStorage` keys `cr-report-state-v1` and `cr-report-theme-v1`) survives across page loads, so the checked/expanded state and theme follow the user.
+  - State persists in `localStorage`: theme uses the single global key `cr-report-theme`; per-issue checked/expanded state is stored under `cr-report` as a nested object keyed by the HTML file's name (derived from `window.location.pathname`), so multiple reports viewed in the same browser keep independent state.
 
 NUL bytes (`\\x00`) inside the IIFE are intentional — they are the placeholder delimiters used by the lightweight markdown renderer to protect code blocks during string substitution. Preserve them when editing.
