@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Code Review Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --serif: "Fraunces", "Noto Serif TC", "Songti TC", Georgia, serif;
+    --sans: "Inter Tight", "Noto Sans TC", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Mono", "SF Mono", Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+    --bg: #f6f1e7;
+    --bg-elev: #fbf7ee;
+    --bg-paper: #fffdf6;
+    --bg-code: #f0e9d8;
+    --bg-code-suggest: #eef4ea;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-faint: #8a8a83;
+    --rule: #d8cdb4;
+    --rule-soft: #e6dec8;
+    --accent: #1f3a5f;
+    --p0: #c43a13;
+    --p0-tint: #f5d9cc;
+    --p1: #a06900;
+    --p1-tint: #efe1bc;
+    --ok: #2c7a3e;
+    --shadow: 0 1px 0 rgba(0,0,0,.04), 0 12px 24px -16px rgba(40,30,10,.18);
+    --shadow-hover: 0 1px 0 rgba(0,0,0,.04), 0 18px 30px -16px rgba(40,30,10,.28);
+    --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .045 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+:root[data-theme="dark"] {
+    --bg: #15140f;
+    --bg-elev: #1d1c16;
+    --bg-paper: #1a1914;
+    --bg-code: #0e0d09;
+    --bg-code-suggest: #0f1410;
+    --ink: #f0ead6;
+    --ink-soft: #c2bba3;
+    --ink-faint: #807a68;
+    --rule: #2d2b22;
+    --rule-soft: #232118;
+    --accent: #ffc56a;
+    --p0: #ff7a4d;
+    --p0-tint: #3a1a0d;
+    --p1: #e3b045;
+    --p1-tint: #2e2410;
+    --ok: #7ec488;
+    --shadow: 0 1px 0 rgba(0,0,0,.6), 0 16px 36px -18px rgba(0,0,0,.7);
+    --shadow-hover: 0 1px 0 rgba(0,0,0,.6), 0 22px 44px -18px rgba(0,0,0,.85);
+    --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color .25s ease, color .25s ease;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: var(--grain);
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: multiply;
+    opacity: .6;
+}
+
+:root[data-theme="dark"] body::before { mix-blend-mode: screen; opacity: .8; }
+
+.layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: 100vh;
+    max-width: 1640px;
+    margin: 0 auto;
+}
+
+/* ============ SIDEBAR ============ */
+
+.sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    border-right: 1px solid var(--rule);
+    background: var(--bg-elev);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-head {
+    padding: 28px 26px 18px;
+    border-bottom: 1px solid var(--rule);
+}
+
+.brand {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1;
+    margin: 0;
+}
+
+.brand em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.brand-sub {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.progress-block {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--rule);
+}
+
+.progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+
+.progress-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.progress-val {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.progress-bar {
+    height: 4px;
+    background: var(--rule);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--ok);
+    width: 0%;
+    transition: width .35s ease;
+}
+
+.toc-filters {
+    display: flex;
+    gap: 4px;
+    padding: 14px 22px 12px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+}
+
+.toc-filter {
+    padding: 4px 8px;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink-soft);
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    transition: all .15s ease;
+}
+
+.toc-filter:hover { border-color: var(--ink-faint); color: var(--ink); }
+
+.toc-filter.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+}
+
+.toc-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0 24px;
+}
+
+.toc-scroll::-webkit-scrollbar { width: 6px; }
+.toc-scroll::-webkit-scrollbar-track { background: transparent; }
+.toc-scroll::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+.toc-group {
+    padding: 18px 22px 4px;
+}
+
+.toc-group-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+}
+
+.toc-group-count {
+    font-family: var(--serif);
+    font-size: 14px;
+    color: var(--ink);
+}
+
+.toc-item {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    align-items: start;
+    padding: 8px 22px 8px 14px;
+    margin: 0 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    text-decoration: none;
+    transition: background .12s ease, color .12s ease;
+    position: relative;
+    line-height: 1.4;
+}
+
+.toc-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 0;
+    background: var(--accent);
+    transition: height .2s ease;
+}
+
+.toc-item:hover {
+    background: var(--bg-paper);
+    color: var(--ink);
+}
+
+.toc-item.active::before { height: 65%; }
+
+.toc-item.active {
+    background: var(--bg-paper);
+    color: var(--ink);
+}
+
+.toc-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding-top: 1px;
+}
+
+.toc-item[data-priority="p0"] .toc-id { color: var(--p0); }
+.toc-item[data-priority="p1"] .toc-id { color: var(--p1); }
+.toc-item[data-priority="p2"] .toc-id { color: var(--accent); }
+.toc-item[data-priority="p3"] .toc-id { color: var(--ink-faint); }
+
+.toc-title {
+    font-size: 13px;
+    color: inherit;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+
+.toc-item.checked .toc-title {
+    text-decoration: line-through;
+    color: var(--ink-faint);
+    text-decoration-color: var(--ink-faint);
+    text-decoration-thickness: 1px;
+}
+
+.toc-item.checked .toc-id { opacity: .55; }
+
+/* ============ MAIN ============ */
+
+.main {
+    padding: 0 56px 80px;
+    min-width: 0;
+}
+
+.main-head {
+    padding: 56px 0 36px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+}
+
+.main-title {
+    font-family: var(--serif);
+    font-size: clamp(36px, 4.8vw, 64px);
+    font-weight: 600;
+    letter-spacing: -.035em;
+    line-height: .98;
+    margin: 0;
+}
+
+.main-title em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--accent);
+}
+
+.main-sub {
+    margin-top: 14px;
+    color: var(--ink-soft);
+    font-size: 14px;
+    max-width: 580px;
+    line-height: 1.55;
+}
+
+.main-sub code {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 1px 6px;
+    background: var(--bg-code);
+    border-radius: 3px;
+    color: var(--ink);
+}
+
+.head-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.head-stat {
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    line-height: 1.5;
+    margin-right: 8px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.head-stat strong {
+    display: block;
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -.02em;
+    margin-top: 2px;
+}
+
+.icon-btn {
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--rule);
+    background: var(--bg-paper);
+    color: var(--ink);
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .15s ease;
+    padding: 0;
+}
+
+.icon-btn:hover {
+    border-color: var(--ink);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.icon-btn svg { width: 16px; height: 16px; stroke: currentColor; }
+
+:root[data-theme="light"] .icon-sun { display: none; }
+:root[data-theme="dark"] .icon-moon { display: none; }
+
+/* ============ SECTION + ISSUE ============ */
+
+.priority-section {
+    margin-top: 48px;
+}
+
+.priority-head {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+}
+
+.priority-marker {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    padding: 4px 9px;
+    border-radius: 2px;
+}
+
+.priority-section[data-priority="p0"] .priority-marker {
+    background: var(--p0);
+    color: var(--bg-paper);
+}
+
+.priority-section[data-priority="p1"] .priority-marker {
+    background: var(--p1);
+    color: var(--bg-paper);
+}
+
+.priority-section[data-priority="p2"] .priority-marker {
+    background: var(--accent);
+    color: var(--bg-paper);
+}
+
+.priority-section[data-priority="p3"] .priority-marker {
+    background: var(--ink-faint);
+    color: var(--bg-paper);
+}
+
+.priority-title {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 500;
+    letter-spacing: -.02em;
+    margin: 0;
+    flex: 1;
+    font-style: italic;
+}
+
+.priority-count {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: .08em;
+}
+
+.issue {
+    background: var(--bg-paper);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule);
+    border-radius: 4px;
+    margin-bottom: 18px;
+    transition: border-color .2s ease, transform .15s ease, box-shadow .2s ease, opacity .25s ease;
+    position: relative;
+    scroll-margin-top: 24px;
+}
+
+.issue[data-priority="p0"] { border-left-color: var(--p0); }
+.issue[data-priority="p1"] { border-left-color: var(--p1); }
+.issue[data-priority="p2"] { border-left-color: var(--accent); }
+.issue[data-priority="p3"] { border-left-color: var(--ink-faint); }
+
+.issue.checked {
+    opacity: .5;
+    background: var(--bg-elev);
+}
+
+.issue.checked .issue-title-text {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--ink-faint);
+}
+
+.issue-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+}
+
+.issue-title-block {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    user-select: none;
+    min-width: 0;
+}
+
+.issue-title-block:hover .issue-title-text {
+    color: var(--accent);
+}
+
+.issue-check-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    pointer-events: none;
+}
+
+.issue-check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+    position: relative;
+    transition: all .15s ease;
+}
+
+.issue-check:hover { border-color: var(--ink); }
+
+.issue-check:checked {
+    background: var(--ok);
+    border-color: var(--ok);
+}
+
+.issue-check:checked::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    width: 4px;
+    height: 9px;
+    border: solid var(--bg-paper);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.issue-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    padding: 4px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+
+.issue[data-priority="p0"] .issue-id {
+    background: var(--p0-tint);
+    color: var(--p0);
+}
+
+.issue[data-priority="p1"] .issue-id {
+    background: var(--p1-tint);
+    color: var(--p1);
+}
+
+.issue[data-priority="p2"] .issue-id {
+    background: var(--bg-code);
+    color: var(--accent);
+}
+
+.issue[data-priority="p3"] .issue-id {
+    background: var(--bg-code);
+    color: var(--ink-faint);
+}
+
+.issue-title-text {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: -.01em;
+    color: var(--ink);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.issue-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.act-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-faint);
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s ease;
+    padding: 0;
+}
+
+.act-btn:hover {
+    background: var(--bg-elev);
+    color: var(--ink);
+    border-color: var(--rule);
+}
+
+.act-btn svg { width: 14px; height: 14px; stroke: currentColor; }
+
+.act-btn.copied {
+    background: var(--ok);
+    color: var(--bg-paper);
+    border-color: var(--ok);
+}
+
+.toggle-btn svg {
+    transition: transform .25s ease;
+}
+
+.issue.expanded .toggle-btn svg {
+    transform: rotate(180deg);
+}
+
+.issue-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .35s cubic-bezier(.4, 0, .2, 1);
+}
+
+.issue.expanded .issue-body {
+    grid-template-rows: 1fr;
+}
+
+.issue-body-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.issue-body-content {
+    padding: 4px 24px 26px;
+    border-top: 1px dashed var(--rule);
+    margin: 0 20px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.issue-meta-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 16px;
+    padding: 14px 0 4px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+}
+
+.issue-meta-row + .issue-meta-row { padding-top: 0; }
+
+.meta-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-top: 3px;
+}
+
+.meta-value { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+.meta-value code { background: transparent; padding: 0; }
+
+.body-section {
+    margin-top: 22px;
+}
+
+.body-section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.body-section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule-soft);
+}
+
+.body-section p {
+    margin: 0 0 12px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--ink);
+}
+
+.body-section p:last-child { margin-bottom: 0; }
+
+.body-section strong {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.body-section code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 1px 5px;
+    background: var(--bg-code);
+    border-radius: 2px;
+    color: var(--ink);
+    word-break: break-word;
+}
+
+.body-section ol, .body-section ul {
+    margin: 4px 0 12px;
+    padding-left: 22px;
+}
+
+.body-section li {
+    margin: 6px 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink);
+}
+
+.body-section li::marker { color: var(--ink-faint); }
+
+pre {
+    margin: 0;
+    background: var(--bg-code);
+    border-radius: 3px;
+    overflow-x: auto;
+    border: 1px solid var(--rule-soft);
+    position: relative;
+}
+
+pre.suggest { background: var(--bg-code-suggest); }
+
+pre code {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    padding: 14px 16px;
+    color: var(--ink);
+    background: transparent;
+}
+
+pre::-webkit-scrollbar { height: 6px; }
+pre::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+/* simple syntax-ish styling for csharp */
+.tok-c { color: var(--ink-faint); font-style: italic; } /* comment */
+.tok-k { color: var(--p0); font-weight: 600; } /* keyword */
+.tok-s { color: var(--ok); } /* string */
+.tok-t { color: var(--accent); font-weight: 500; } /* type */
+.tok-a { color: var(--p1); } /* attribute */
+
+/* ============ SUMMARY TABLE ============ */
+
+.summary-section { margin-top: 56px; }
+
+.summary-section h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 500;
+    font-style: italic;
+    letter-spacing: -.01em;
+    margin: 0 0 18px;
+}
+
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.summary-table th, .summary-table td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--rule);
+}
+
+.summary-table th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+    border-bottom: 1px solid var(--ink);
+}
+
+.summary-table td:nth-child(2),
+.summary-table td:nth-child(3),
+.summary-table td:nth-child(4),
+.summary-table th:nth-child(2),
+.summary-table th:nth-child(3),
+.summary-table th:nth-child(4) { text-align: right; }
+
+.summary-table tr.total td {
+    font-family: var(--serif);
+    font-weight: 600;
+    border-bottom: none;
+    border-top: 1px solid var(--ink);
+    padding-top: 16px;
+}
+
+.summary-note {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--bg-elev);
+    border-left: 3px solid var(--ink-faint);
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-radius: 0 3px 3px 0;
+    line-height: 1.6;
+}
+
+.summary-note code { font-family: var(--mono); font-size: 12px; }
+
+/* ============ TOAST ============ */
+
+.toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    padding: 12px 18px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .04em;
+    border-radius: 4px;
+    box-shadow: var(--shadow-hover);
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all .25s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+/* ============ FILTER STATES ============ */
+
+.issue.hidden { display: none; }
+.toc-item.hidden { display: none; }
+.priority-section.empty .priority-head { opacity: .4; }
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 1100px) {
+    .layout { grid-template-columns: 280px 1fr; }
+    .main { padding: 0 36px 60px; }
+}
+
+@media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+        position: relative;
+        height: auto;
+        max-height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid var(--rule);
+    }
+    .main { padding: 0 22px 60px; }
+    .main-head { grid-template-columns: 1fr; padding-top: 32px; }
+    .issue-header { grid-template-columns: auto auto 1fr; gap: 10px; padding: 14px; }
+    .issue-actions { grid-column: 1 / -1; justify-content: flex-end; padding-top: 4px; }
+}
+
+/* selection */
+::selection { background: var(--accent); color: var(--bg-paper); }
+
+/* focus */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+        <div class="sidebar-head">
+            <h1 class="brand">Code<br><em>Review</em></h1>
+            <div class="brand-sub" id="brandSub"></div>
+            <div class="progress-block">
+                <div class="progress-row">
+                    <span class="progress-label">已處理</span>
+                    <span class="progress-val"><span id="progressCount">0</span><span style="color:var(--ink-faint);font-size:13px"> / <span id="progressTotal">0</span></span></span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            </div>
+        </div>
+        <div class="toc-filters">
+            <button class="toc-filter active" data-filter="all">全部</button>
+            <button class="toc-filter" data-filter="p0">P0</button>
+            <button class="toc-filter" data-filter="p1">P1</button>
+            <button class="toc-filter" data-filter="p2">P2</button>
+            <button class="toc-filter" data-filter="p3">P3</button>
+            <button class="toc-filter" data-filter="open">未處理</button>
+            <button class="toc-filter" data-filter="done">已處理</button>
+        </div>
+        <nav class="toc-scroll" id="toc"></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+        <header class="main-head">
+            <div>
+                <h2 class="main-title" id="mainTitle">Code<br>Review <em>Report</em></h2>
+                <p class="main-sub" id="mainSub"></p>
+            </div>
+            <div class="head-actions">
+                <div class="head-stat">
+                    Findings
+                    <strong id="statTotal">27</strong>
+                </div>
+                <button class="icon-btn" id="expandAll" title="全部展開" aria-label="全部展開">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <button class="icon-btn" id="collapseAll" title="全部折疊" aria-label="全部折疊">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button class="icon-btn" id="themeToggle" title="切換主題" aria-label="切換主題">
+                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.93" y2="6.93"/><line x1="17.07" y1="17.07" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.93" y2="17.07"/><line x1="17.07" y1="6.93" x2="19.07" y2="4.93"/></svg>
+                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <div id="issuesRoot"></div>
+
+        <section class="summary-section" id="summarySection"></section>
+    </main>
+</div>
+
+<div class="toast" id="toast">已複製</div>
+
+<!-- ============ MARKDOWN SOURCE ============ -->
+<script type="text/plain" id="report-md">
+__REPORT_MARKDOWN__
+</script>
+
+<script>
+(function () {
+    "use strict";
+
+    const STORAGE_KEY = "cr-report-state-v1";
+    const THEME_KEY = "cr-report-theme-v1";
+
+    /* ============ STATE ============ */
+    let state = loadState();
+    let activeFilter = "all";
+
+    function loadState() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function getIssue(id) {
+        if (!state[id]) state[id] = { checked: false, expanded: true };
+        return state[id];
+    }
+
+    /* ============ THEME ============ */
+    function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        const initial = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", initial);
+    }
+
+    function toggleTheme() {
+        const cur = document.documentElement.getAttribute("data-theme");
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem(THEME_KEY, next);
+    }
+
+    /* ============ MARKDOWN PARSER ============ */
+    function escapeHtml(s) {
+        return s.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+    }
+
+    function highlightCs(code) {
+        // very lightweight csharp/protobuf/sql-ish coloring on already-escaped html
+        // do replacements in order; protect strings + comments first
+        // NOTE: stash() wraps tokens with literal NUL bytes (\x00...\x00) as a collision-proof
+        // placeholder delimiter — real markdown source effectively never contains NUL, so the
+        // keyword/type/attribute regex passes below cannot corrupt previously-stashed content.
+        // The restore replace() at the end of this function matches the same NULs; DO NOT strip
+        // the \x00 bytes from the literals below or it will break syntax highlighting silently.
+        const placeholders = [];
+        function stash(html) {
+            placeholders.push(html);
+            return "P" + (placeholders.length - 1) + "";
+        }
+        code = code.replace(/(\/\/[^\n]*)/g, m => stash('<span class="tok-c">' + m + '</span>'));
+        code = code.replace(/(&quot;[^&]*?&quot;)/g, m => stash('<span class="tok-s">' + m + '</span>'));
+        const kw = "public|private|protected|internal|static|override|async|await|return|if|else|var|new|using|namespace|class|struct|interface|true|false|null|throw|try|catch|finally|switch|case|foreach|for|while|in|out|ref|sealed|abstract|readonly|const|this|base|void|int|long|bool|string|byte|float|double|decimal|enum|yield|rpc|message|service|package|option";
+        code = code.replace(new RegExp("\\b(" + kw + ")\\b", "g"), '<span class="tok-k">$1</span>');
+        code = code.replace(/\[([A-Z][\w]*)\]/g, '<span class="tok-a">[$1]</span>');
+        code = code.replace(/\b([A-Z][A-Za-z0-9]+)(?=[\s\(<.])/g, '<span class="tok-t">$1</span>');
+        code = code.replace(/P(\d+)/g, (m, i) => placeholders[parseInt(i, 10)]);
+        return code;
+    }
+
+    function dedent(code) {
+        const lines = code.split("\n");
+        let minIndent = Infinity;
+        for (const l of lines) {
+            if (l.trim()) {
+                const mm = l.match(/^( *)/);
+                minIndent = Math.min(minIndent, mm[1].length);
+            }
+        }
+        if (minIndent > 0 && minIndent !== Infinity) {
+            return lines.map(l => l.length >= minIndent ? l.substring(minIndent) : l).join("\n");
+        }
+        return code;
+    }
+
+    function renderMd(md, opts) {
+        opts = opts || {};
+        // NOTE: code blocks are stashed as \x01CB<index>\x01 (SOH-wrapped tokens) so that the
+        // subsequent escapeHtml / inline-code / bold / list / paragraph passes cannot mangle
+        // their contents. SOH is used here (independent namespace from highlightCs's NUL) and
+        // the restore replace() near the bottom matches the same SOHs; DO NOT strip the \x01
+        // bytes from the literals below or fenced code blocks will silently lose their content.
+        const codeBlocks = [];
+        md = md.replace(/```(\w*)\n([\s\S]*?)```/g, function (m, lang, code) {
+            codeBlocks.push({ lang: lang, code: dedent(code) });
+            return " CB" + (codeBlocks.length - 1) + " ";
+        });
+
+        md = escapeHtml(md);
+
+        // inline code (single backtick) and bold
+        md = md.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        md = md.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+
+        // line-based processing for lists + paragraphs
+        const lines = md.split("\n");
+        const out = [];
+        let listType = null;
+        let listItems = [];
+        let para = [];
+
+        function flushPara() {
+            if (para.length) {
+                out.push("<p>" + para.join(" ") + "</p>");
+                para = [];
+            }
+        }
+        function flushList() {
+            if (listType) {
+                out.push("<" + listType + ">" + listItems.map(i => "<li>" + i + "</li>").join("") + "</" + listType + ">");
+                listType = null;
+                listItems = [];
+            }
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.trim()) {
+                flushPara();
+                flushList();
+                continue;
+            }
+            const ol = line.match(/^\s*(\d+)\.\s+(.+)$/);
+            if (ol) {
+                flushPara();
+                if (listType !== "ol") { flushList(); listType = "ol"; }
+                listItems.push(ol[2]);
+                continue;
+            }
+            const ul = line.match(/^\s*[-*]\s+(.+)$/);
+            if (ul) {
+                flushPara();
+                if (listType !== "ul") { flushList(); listType = "ul"; }
+                listItems.push(ul[1]);
+                continue;
+            }
+            // indented continuation
+            if (listType && /^\s{2,}\S/.test(line)) {
+                if (listItems.length) listItems[listItems.length - 1] += " " + line.trim();
+                continue;
+            }
+            flushList();
+            para.push(line.trim());
+        }
+        flushPara();
+        flushList();
+
+        let html = out.join("\n");
+        html = html.replace(/ CB(\d+) /g, function (m, idx) {
+            const cb = codeBlocks[parseInt(idx, 10)];
+            const escaped = escapeHtml(cb.code);
+            const colored = highlightCs(escaped);
+            const cls = opts.suggestion ? "suggest" : "";
+            return '<pre class="' + cls + '"><code class="lang-' + (cb.lang || "text") + '">' + colored + "</code></pre>";
+        });
+        return html;
+    }
+
+    /* ============ PARSE REPORT ============ */
+    function parseReport(md) {
+        // Extract H1 title
+        let title = "Code Review Report";
+        const h1 = md.match(/^#\s+(.+)/m);
+        if (h1) title = h1[1].trim();
+
+        // Extract intro: content between H1 and first --- or first ## heading
+        let intro = "";
+        const introMatch = md.match(/^#\s+.+\n([\s\S]*?)(?=\n---\s*\n|\n## )/m);
+        if (introMatch) intro = introMatch[1].trim();
+
+        // Try to extract a branch name from intro (eg `feature/X` or `bugfix/Y`)
+        let branch = "";
+        const branchMatch = intro.match(/`([\w][\w./-]*\/[\w][\w./-]*)`/);
+        if (branchMatch) branch = branchMatch[1];
+
+        const priorityLabels = {
+            p0: "必須修正",
+            p1: "強烈建議修正",
+            p2: "建議改進",
+            p3: "非強制建議"
+        };
+
+        const sections = md.split(/\n## /);
+        const issues = [];
+        let summary = "";
+
+        for (let i = 1; i < sections.length; i++) {
+            const block = sections[i];
+            const headLine = block.split("\n", 1)[0];
+            const priHead = headLine.match(/^(P\d)\s*[—\-–]?\s*(.*)$/);
+            if (priHead) {
+                const priority = priHead[1].toLowerCase();
+                const labelText = priHead[2].replace(/^[—\-–]\s*/, "").trim();
+                if (labelText) priorityLabels[priority] = labelText;
+
+                const body = block.substring(headLine.length);
+                const issueRe = /### \[(P\d-\d+)\]\s+(.+?)\n([\s\S]+?)(?=\n### \[P\d-\d+\]|\n---\s*\n|$)/g;
+                let m;
+                while ((m = issueRe.exec(body)) !== null) {
+                    const id = m[1];
+                    const title = m[2].trim();
+                    const raw = m[3].trim();
+                    const fileMatch = raw.match(/- 檔案:\s*(.+)/);
+                    const lineMatch = raw.match(/- 行數:\s*(.+)/);
+                    const descMatch = raw.match(/- 問題描述:\s*([\s\S]+?)(?=\n- 相關程式碼:|\n- 建議修正:|$)/);
+                    const codeMatch = raw.match(/- 相關程式碼:\s*\n?([\s\S]+?)(?=\n- 建議修正:|$)/);
+                    const fixMatch = raw.match(/- 建議修正:\s*([\s\S]+?)$/);
+
+                    issues.push({
+                        id: id,
+                        priority: priority,
+                        title: title,
+                        file: fileMatch ? fileMatch[1].trim() : "",
+                        line: lineMatch ? lineMatch[1].trim() : "",
+                        description: descMatch ? descMatch[1].trim() : "",
+                        code: codeMatch ? codeMatch[1].trim() : "",
+                        fix: fixMatch ? fixMatch[1].trim() : "",
+                        raw: "### [" + id + "] " + title + "\n\n" + raw
+                    });
+                }
+            } else if (/^審查覆蓋摘要/.test(headLine)) {
+                summary = block.substring(headLine.length).trim();
+            }
+        }
+        return { issues: issues, summary: summary, title: title, intro: intro, branch: branch, priorityLabels: priorityLabels };
+    }
+
+    /* ============ RENDER ============ */
+    function renderIssues(issues, priorityLabels) {
+        const root = document.getElementById("issuesRoot");
+        const tocRoot = document.getElementById("toc");
+        const grouped = { p0: [], p1: [], p2: [], p3: [] };
+        issues.forEach(it => { (grouped[it.priority] || (grouped[it.priority] = [])).push(it); });
+
+        ["p0", "p1", "p2", "p3"].concat(Object.keys(grouped).filter(k => !["p0","p1","p2","p3"].includes(k))).forEach(pri => {
+            const list = grouped[pri];
+            if (!list || !list.length) return;
+
+            const marker = pri.toUpperCase();
+            const name = priorityLabels[pri] || marker;
+
+            const section = document.createElement("section");
+            section.className = "priority-section";
+            section.dataset.priority = pri;
+
+            const head = document.createElement("div");
+            head.className = "priority-head";
+            head.innerHTML =
+                '<span class="priority-marker">' + marker + '</span>' +
+                '<h2 class="priority-title">' + escapeHtml(name) + '</h2>' +
+                '<span class="priority-count">' + list.length + " issues</span>";
+            section.appendChild(head);
+
+            const tocGroup = document.createElement("div");
+            tocGroup.className = "toc-group";
+            tocGroup.dataset.priority = pri;
+            tocGroup.innerHTML =
+                '<div class="toc-group-title">' +
+                    '<span>' + marker + ' · ' + escapeHtml(name) + '</span>' +
+                    '<span class="toc-group-count">' + list.length + '</span>' +
+                '</div>';
+            tocRoot.appendChild(tocGroup);
+
+            list.forEach(issue => {
+                section.appendChild(buildIssueCard(issue));
+                tocGroup.appendChild(buildTocItem(issue));
+            });
+
+            root.appendChild(section);
+        });
+
+        // Apply persisted state
+        issues.forEach(it => {
+            const st = getIssue(it.id);
+            const card = document.querySelector('.issue[data-id="' + it.id + '"]');
+            const toc = document.querySelector('.toc-item[data-id="' + it.id + '"]');
+            if (st.checked) {
+                card.classList.add("checked");
+                card.querySelector(".issue-check").checked = true;
+                if (toc) toc.classList.add("checked");
+            }
+            if (st.expanded) card.classList.add("expanded");
+        });
+
+        updateProgress(issues);
+    }
+
+    function buildIssueCard(issue) {
+        const el = document.createElement("article");
+        el.className = "issue";
+        el.dataset.id = issue.id;
+        el.dataset.priority = issue.priority;
+        el.id = "issue-" + issue.id;
+
+        const header = document.createElement("header");
+        header.className = "issue-header";
+
+        const titleBlock = document.createElement("label");
+        titleBlock.className = "issue-title-block";
+
+        const checkWrap = document.createElement("span");
+        checkWrap.className = "issue-check-wrap";
+        checkWrap.innerHTML = '<input type="checkbox" class="issue-check" aria-label="標記已處理">';
+
+        const idBadge = document.createElement("span");
+        idBadge.className = "issue-id";
+        idBadge.textContent = issue.id;
+
+        const titleEl = document.createElement("h3");
+        titleEl.className = "issue-title-text";
+        titleEl.textContent = issue.title;
+
+        titleBlock.appendChild(checkWrap);
+        titleBlock.appendChild(idBadge);
+        titleBlock.appendChild(titleEl);
+
+        const actions = document.createElement("div");
+        actions.className = "issue-actions";
+        actions.innerHTML =
+            '<button class="act-btn copy-btn" title="複製此 issue" aria-label="複製此 issue">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+            '</button>' +
+            '<button class="act-btn toggle-btn" title="展開/折疊" aria-label="展開/折疊">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+            '</button>';
+
+        header.appendChild(titleBlock);
+        header.appendChild(actions);
+
+        const body = document.createElement("div");
+        body.className = "issue-body";
+        const inner = document.createElement("div");
+        inner.className = "issue-body-inner";
+        const content = document.createElement("div");
+        content.className = "issue-body-content";
+
+        const metaFile = document.createElement("div");
+        metaFile.className = "issue-meta-row";
+        metaFile.innerHTML =
+            '<div class="meta-label">檔案</div>' +
+            '<div class="meta-value">' + renderInline(issue.file) + '</div>';
+
+        const metaLine = document.createElement("div");
+        metaLine.className = "issue-meta-row";
+        metaLine.innerHTML =
+            '<div class="meta-label">行數</div>' +
+            '<div class="meta-value">' + renderInline(issue.line) + '</div>';
+
+        content.appendChild(metaFile);
+        content.appendChild(metaLine);
+
+        if (issue.description) {
+            const sec = document.createElement("div");
+            sec.className = "body-section";
+            sec.innerHTML =
+                '<div class="body-section-label">問題描述</div>' +
+                renderMd(issue.description);
+            content.appendChild(sec);
+        }
+
+        if (issue.code) {
+            const sec = document.createElement("div");
+            sec.className = "body-section";
+            sec.innerHTML =
+                '<div class="body-section-label">相關程式碼</div>' +
+                renderMd(issue.code);
+            content.appendChild(sec);
+        }
+
+        if (issue.fix) {
+            const sec = document.createElement("div");
+            sec.className = "body-section";
+            sec.innerHTML =
+                '<div class="body-section-label">建議修正</div>' +
+                renderMd(issue.fix, { suggestion: true });
+            content.appendChild(sec);
+        }
+
+        inner.appendChild(content);
+        body.appendChild(inner);
+
+        el.appendChild(header);
+        el.appendChild(body);
+
+        /* Events */
+        checkWrap.querySelector(".issue-check").addEventListener("change", e => {
+            toggleCheck(issue.id, e.target.checked);
+        });
+        actions.querySelector(".toggle-btn").addEventListener("click", e => {
+            toggleExpand(issue.id);
+        });
+        actions.querySelector(".copy-btn").addEventListener("click", e => {
+            copyIssue(issue, e.currentTarget);
+        });
+
+        return el;
+    }
+
+    function renderInline(text) {
+        return escapeHtml(text).replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    }
+
+    function buildTocItem(issue) {
+        const a = document.createElement("a");
+        a.className = "toc-item";
+        a.href = "#issue-" + issue.id;
+        a.dataset.id = issue.id;
+        a.dataset.priority = issue.priority;
+        a.innerHTML =
+            '<span class="toc-id">' + issue.id + '</span>' +
+            '<span class="toc-title">' + escapeHtml(issue.title) + '</span>';
+        a.addEventListener("click", e => {
+            e.preventDefault();
+            const target = document.getElementById("issue-" + issue.id);
+            if (!target) return;
+            // Expand it
+            if (!target.classList.contains("expanded")) toggleExpand(issue.id);
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+            // highlight active
+            document.querySelectorAll(".toc-item.active").forEach(x => x.classList.remove("active"));
+            a.classList.add("active");
+        });
+        return a;
+    }
+
+    function toggleExpand(id) {
+        const card = document.querySelector('.issue[data-id="' + id + '"]');
+        if (!card) return;
+        const expanded = !card.classList.contains("expanded");
+        card.classList.toggle("expanded", expanded);
+        getIssue(id).expanded = expanded;
+        saveState();
+    }
+
+    function toggleCheck(id, checked) {
+        const card = document.querySelector('.issue[data-id="' + id + '"]');
+        const toc = document.querySelector('.toc-item[data-id="' + id + '"]');
+        if (!card) return;
+        card.classList.toggle("checked", checked);
+        if (toc) toc.classList.toggle("checked", checked);
+        const cb = card.querySelector(".issue-check");
+        if (cb.checked !== checked) cb.checked = checked;
+        getIssue(id).checked = checked;
+        saveState();
+        updateProgressFromDom();
+        applyFilter();
+    }
+
+    function copyIssue(issue, btn) {
+        const text = issue.raw;
+        const onDone = () => {
+            btn.classList.add("copied");
+            showToast("已複製 " + issue.id);
+            setTimeout(() => btn.classList.remove("copied"), 1400);
+        };
+        const fallback = () => {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand("copy"); onDone(); } catch (e) { showToast("複製失敗"); }
+            document.body.removeChild(ta);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(onDone).catch(fallback);
+        } else {
+            fallback();
+        }
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(showToast._tm);
+        showToast._tm = setTimeout(() => t.classList.remove("show"), 1500);
+    }
+
+    /* ============ FILTERS / PROGRESS / SCROLL SPY ============ */
+    function applyFilter() {
+        document.querySelectorAll(".issue").forEach(card => {
+            const pri = card.dataset.priority;
+            const checked = card.classList.contains("checked");
+            let show = true;
+            if (/^p\d$/.test(activeFilter)) show = pri === activeFilter;
+            else if (activeFilter === "open") show = !checked;
+            else if (activeFilter === "done") show = checked;
+            card.classList.toggle("hidden", !show);
+            const toc = document.querySelector('.toc-item[data-id="' + card.dataset.id + '"]');
+            if (toc) toc.classList.toggle("hidden", !show);
+        });
+        document.querySelectorAll(".priority-section").forEach(sec => {
+            const visible = sec.querySelectorAll(".issue:not(.hidden)").length;
+            sec.classList.toggle("empty", visible === 0);
+        });
+    }
+
+    function refreshFilterVisibility() {
+        document.querySelectorAll(".toc-filter[data-filter^='p']").forEach(btn => {
+            const pri = btn.dataset.filter;
+            const has = document.querySelector('.issue[data-priority="' + pri + '"]') !== null;
+            btn.style.display = has ? "" : "none";
+        });
+    }
+
+    function updateProgress(issues) {
+        document.getElementById("statTotal").textContent = issues.length;
+        document.getElementById("progressTotal").textContent = issues.length;
+        updateProgressFromDom();
+    }
+
+    function updateProgressFromDom() {
+        const all = document.querySelectorAll(".issue");
+        const checked = document.querySelectorAll(".issue.checked");
+        document.getElementById("progressCount").textContent = checked.length;
+        const pct = all.length ? (checked.length / all.length) * 100 : 0;
+        document.getElementById("progressFill").style.width = pct + "%";
+    }
+
+    function initScrollSpy() {
+        const obs = new IntersectionObserver(entries => {
+            entries.forEach(en => {
+                if (en.isIntersecting) {
+                    const id = en.target.dataset.id;
+                    document.querySelectorAll(".toc-item.active").forEach(x => x.classList.remove("active"));
+                    const toc = document.querySelector('.toc-item[data-id="' + id + '"]');
+                    if (toc) toc.classList.add("active");
+                }
+            });
+        }, { rootMargin: "-30% 0px -60% 0px", threshold: 0 });
+        document.querySelectorAll(".issue").forEach(el => obs.observe(el));
+    }
+
+    /* ============ SUMMARY ============ */
+    function renderSummary(summaryMd) {
+        if (!summaryMd) return;
+        const el = document.getElementById("summarySection");
+        // Parse the table from markdown
+        el.innerHTML = '<h2>審查覆蓋摘要</h2>';
+        const lines = summaryMd.split("\n").map(l => l.trim()).filter(l => l);
+        const tableLines = lines.filter(l => l.startsWith("|"));
+        if (tableLines.length >= 2) {
+            const headers = tableLines[0].split("|").map(c => c.trim()).filter(Boolean);
+            const dataRows = tableLines.slice(2).map(row => row.split("|").map(c => c.trim()).filter(Boolean));
+            let html = '<table class="summary-table"><thead><tr>';
+            headers.forEach(h => html += '<th>' + escapeHtml(h) + '</th>');
+            html += '</tr></thead><tbody>';
+            dataRows.forEach(row => {
+                const isTotal = /合計/.test(row[0] || "");
+                html += '<tr' + (isTotal ? ' class="total"' : '') + '>';
+                row.forEach(cell => html += '<td>' + escapeHtml(cell) + '</td>');
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            el.insertAdjacentHTML("beforeend", html);
+        }
+        const note = lines.find(l => l.startsWith(">"));
+        if (note) {
+            el.insertAdjacentHTML("beforeend",
+                '<div class="summary-note">' + renderInline(note.replace(/^>\s*/, "")) + '</div>');
+        }
+    }
+
+    /* ============ HEADER POPULATION ============ */
+    function populateHeader(parsed) {
+        // Document title + main title
+        const titleText = parsed.title || "Code Review Report";
+        document.title = parsed.branch ? (titleText + " — " + parsed.branch) : titleText;
+
+        const mainTitle = document.getElementById("mainTitle");
+        if (mainTitle) {
+            // Split title into "Word1<br>Word2 <em>Word3...</em>" for visual rhythm if 2+ words
+            const words = titleText.split(/\s+/);
+            if (words.length >= 2) {
+                const last = words.pop();
+                mainTitle.innerHTML = escapeHtml(words.join(" ")) + "<br>" + "<em>" + escapeHtml(last) + "</em>";
+            } else {
+                mainTitle.textContent = titleText;
+            }
+        }
+
+        // Main subtitle: render intro markdown
+        const mainSub = document.getElementById("mainSub");
+        if (mainSub && parsed.intro) {
+            mainSub.innerHTML = renderMd(parsed.intro);
+            // unwrap if it's a single <p>...</p>
+            const onlyP = mainSub.querySelector(":scope > p:only-child");
+            if (onlyP) mainSub.innerHTML = onlyP.innerHTML;
+        }
+
+        // Brand sub: "{branch} · {YYYY-MM-DD}"
+        const brandSub = document.getElementById("brandSub");
+        if (brandSub) {
+            const today = new Date().toISOString().slice(0, 10);
+            brandSub.textContent = parsed.branch ? (parsed.branch + " · " + today) : today;
+        }
+    }
+
+    /* ============ INIT ============ */
+    function init() {
+        initTheme();
+        const md = document.getElementById("report-md").textContent;
+        const parsed = parseReport(md);
+        populateHeader(parsed);
+        renderIssues(parsed.issues, parsed.priorityLabels);
+        renderSummary(parsed.summary);
+        initScrollSpy();
+        refreshFilterVisibility();
+
+        document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+        document.getElementById("expandAll").addEventListener("click", () => {
+            document.querySelectorAll(".issue").forEach(c => {
+                if (!c.classList.contains("hidden") && !c.classList.contains("expanded")) {
+                    toggleExpand(c.dataset.id);
+                }
+            });
+        });
+        document.getElementById("collapseAll").addEventListener("click", () => {
+            document.querySelectorAll(".issue.expanded").forEach(c => toggleExpand(c.dataset.id));
+        });
+
+        document.querySelectorAll(".toc-filter").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".toc-filter").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                activeFilter = btn.dataset.filter;
+                applyFilter();
+            });
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+})();
+</script>
+
+</body>
+</html>

@@ -22,6 +22,15 @@
       "author": {
         "name": "seanmars"
       }
+    },
+    {
+      "name": "code-review-to-html",
+      "source": "./plugins/code-review-to-html",
+      "description": "Convert code review markdown reports into an interactive, self-contained HTML viewer.",
+      "category": "code-review",
+      "author": {
+        "name": "seanmars"
+      }
     }
   ]
 }
