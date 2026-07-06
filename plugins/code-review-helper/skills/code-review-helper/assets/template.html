@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<!--
+  Code-review report template. Copy this file, then fill in:
+    - <title> and the header (branch/scope, commit list, diff stat)
+    - the <nav> buttons + matching <section> blocks (one section per tab)
+    - content inside each section using the reusable blocks below
+  The theming (light/dark toggle), tab nav, PR-diff and review-notes JS at the
+  bottom work as-is. Delete example blocks you don't use. Keep prose in the
+  user's language.
+
+  TWO INTERACTIVE SYSTEMS THAT MAKE THIS AN ACTIVE REVIEW TOOL:
+  1. PR-style diff (.prdiff) — GitHub/GitLab-like: file header, line-number
+     gutters, unified add/del/ctx rows. Author emits real git line numbers.
+  2. Review notes — hover any diff row or finding -> 💬 to attach a note
+     ("this code is wrong, fix like X"). Notes persist in localStorage and
+     export to Markdown for pasting into a PR. No backend, fully offline.
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Review — {{SCOPE_TITLE}}</title>
+<style>
+  :root {
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --txt:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#a371f7;
+    --add:#3fb950; --addbg:#12261e; --addgut:#1b3326; --del:#f85149; --delbg:#2a1517; --delgut:#3d1a1c;
+    --warn:#d29922; --warnbg:#2a2211; --ok:#3fb950; --okbg:#10261c;
+    --note:#e3b341; --notebg:#2b2412;
+    --mono:'Cascadia Code','SF Mono',Consolas,'Courier New',monospace;
+  }
+  :root[data-theme="light"] {
+    --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --border:#d0d7de;
+    --txt:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#8250df;
+    --add:#1a7f37; --addbg:#e6ffec; --addgut:#ccffd8; --del:#cf222e; --delbg:#ffebe9; --delgut:#ffd7d5;
+    --warn:#9a6700; --warnbg:#fff8c5; --ok:#1a7f37; --okbg:#e6ffec;
+    --note:#9a6700; --notebg:#fff8c5;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --border:#d0d7de;
+      --txt:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#8250df;
+      --add:#1a7f37; --addbg:#e6ffec; --addgut:#ccffd8; --del:#cf222e; --delbg:#ffebe9; --delgut:#ffd7d5;
+      --warn:#9a6700; --warnbg:#fff8c5; --ok:#1a7f37; --okbg:#e6ffec;
+      --note:#9a6700; --notebg:#fff8c5;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif; line-height:1.65;
+    transition:background .2s,color .2s; }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 20px 100px; }
+  header { padding:34px 0 18px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+  h1 { font-size:1.5rem; margin:0 0 6px; } h1 .tag { color:var(--accent2); }
+  .sub { color:var(--muted); font-size:.92rem; }
+  .commits { margin-top:14px; display:flex; flex-direction:column; gap:5px; }
+  .commit { font-family:var(--mono); font-size:.8rem; color:var(--muted); display:flex; gap:10px; }
+  .commit .h { color:var(--warn); } .commit .s { color:var(--txt); }
+
+  .toolbar { position:fixed; top:14px; right:14px; z-index:50; display:flex; gap:8px; }
+  .toolbar button { background:var(--panel); color:var(--txt); border:1px solid var(--border);
+    border-radius:20px; padding:6px 14px; cursor:pointer; font-size:.82rem; }
+  .toolbar button:hover { border-color:var(--accent); }
+  #notesBtn .cnt { background:var(--accent); color:#fff; border-radius:12px; padding:0 7px; margin-left:6px; font-size:.75rem; }
+
+  nav { position:sticky; top:0; z-index:20; background:var(--bg); padding:12px 0;
+    border-bottom:1px solid var(--border); margin-bottom:26px; display:flex; gap:8px; flex-wrap:wrap; }
+  nav button { background:var(--panel); color:var(--muted); border:1px solid var(--border);
+    padding:7px 14px; border-radius:8px; cursor:pointer; font-size:.86rem; transition:.15s; }
+  nav button:hover { color:var(--txt); border-color:var(--accent); }
+  nav button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  section { display:none; animation:fade .25s; }
+  section.active { display:block; }
+  @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+  h2 { font-size:1.2rem; margin:8px 0 4px; padding-top:8px; }
+  h3 { font-size:1rem; margin:22px 0 8px; color:var(--accent); }
+  p { margin:8px 0; } .lead { color:var(--muted); }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; margin:16px 0; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .grid2{grid-template-columns:1fr} }
+  .pill { display:inline-block; font-size:.72rem; padding:2px 9px; border-radius:20px; font-family:var(--mono); }
+  .pill.a { background:var(--panel2); color:var(--accent); border:1px solid var(--accent); }
+  .pill.b { background:var(--panel2); color:var(--accent2); border:1px solid var(--accent2); }
+  .pill.new { background:var(--addbg); color:var(--add); }
+
+  /* ---------- PR-style diff ---------- */
+  .prdiff { border:1px solid var(--border); border-radius:10px; overflow:hidden; margin:14px 0; }
+  .prdiff-head { background:var(--panel2); padding:9px 14px; font-family:var(--mono); font-size:.8rem;
+    display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+  .prdiff-head .fname { color:var(--accent); word-break:break-all; }
+  .prdiff-head .meta { color:var(--muted); white-space:nowrap; margin-left:12px; }
+  .prdiff-head .meta .plus { color:var(--add); } .prdiff-head .meta .minus { color:var(--del); }
+  .prdiff-body { display:table; width:100%; border-collapse:collapse; font-family:var(--mono); font-size:.78rem; }
+  .prdiff.collapsed .prdiff-body { display:none; }
+  .row { display:table-row; }
+  .row > span { display:table-cell; vertical-align:top; }
+  .gut { width:1%; white-space:nowrap; text-align:right; padding:0 8px; color:var(--muted);
+    user-select:none; border-right:1px solid var(--border); background:var(--panel); font-size:.72rem; }
+  .code { padding:0 10px 0 14px; white-space:pre-wrap; word-break:break-word; position:relative; }
+  .row.add .gut { background:var(--addgut); } .row.add .code { background:var(--addbg); }
+  .row.add .code::before { content:'+'; color:var(--add); position:absolute; left:3px; }
+  .row.del .gut { background:var(--delgut); } .row.del .code { background:var(--delbg); }
+  .row.del .code::before { content:'-'; color:var(--del); position:absolute; left:3px; }
+  .row.ctx .code::before { content:' '; position:absolute; left:3px; }
+  .row.hunk .code { color:var(--accent2); background:var(--panel2); }
+  .row.hunk .gut { background:var(--panel2); }
+  .code .anno { color:var(--muted); font-style:italic; }
+  /* note affordance appears on row hover */
+  .row .addnote { position:absolute; left:-2px; top:0; display:none; width:16px; height:16px; line-height:15px;
+    text-align:center; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer;
+    font-size:.7rem; padding:0; z-index:2; }
+  .row:hover .addnote { display:block; }
+  .row.hasnote .code { box-shadow:inset 3px 0 0 var(--note); }
+  /* line-range selection for multi-line notes */
+  .gut { cursor:pointer; }
+  .row.selected .code { background:var(--notebg); }
+  .row.selected .gut { background:var(--note); color:#000; }
+  .selbar { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:55;
+    background:var(--panel); border:1px solid var(--accent); border-radius:24px; padding:8px 12px;
+    display:none; gap:10px; align-items:center; box-shadow:0 6px 20px rgba(0,0,0,.35); font-size:.85rem; }
+  .selbar.show { display:flex; }
+  .selbar button { border:0; border-radius:16px; padding:6px 14px; cursor:pointer; font-size:.83rem; }
+  .selbar .go { background:var(--accent); color:#fff; } .selbar .x { background:var(--panel2); color:var(--txt); }
+  .selhint { color:var(--muted); }
+
+  /* ---------- left file navigator (auto-built from .prdiff) ---------- */
+  .filenav { position:fixed; left:14px; top:110px; width:236px; max-height:calc(100vh - 150px);
+    overflow-y:auto; background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:8px; z-index:30; display:none; }
+  .filenav.show { display:block; }
+  .filenav .fn-title { color:var(--muted); font-size:.72rem; padding:4px 8px 8px; letter-spacing:.04em; text-transform:uppercase; }
+  .filenav a { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:5px 8px;
+    border-radius:6px; color:var(--txt); text-decoration:none; cursor:pointer; }
+  .filenav a:hover { background:var(--panel2); }
+  .filenav a.active { background:var(--panel2); color:var(--accent); box-shadow:inset 2px 0 0 var(--accent); }
+  .filenav a .fn-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl;
+    text-align:left; font-family:var(--mono); font-size:.74rem; }
+  .filenav a .fn-stat { white-space:nowrap; font-family:var(--mono); font-size:.7rem; }
+  .filenav a .fn-stat .plus { color:var(--add); } .filenav a .fn-stat .minus { color:var(--del); }
+
+  /* ---------- per-file description + related files ---------- */
+  .file-desc { background:var(--panel2); border:1px solid var(--border); border-left:3px solid var(--accent2);
+    border-radius:0 8px 8px 0; padding:10px 14px; margin:20px 0 0; font-size:.88rem; }
+  .file-desc .fd-title { font-weight:600; color:var(--accent2); font-size:.78rem; margin-bottom:4px; font-family:var(--mono); word-break:break-all; }
+  .file-desc .related { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .file-desc .related .lbl { color:var(--muted); font-size:.78rem; }
+  .file-desc .related a { font-family:var(--mono); font-size:.76rem; color:var(--accent); cursor:pointer;
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:2px 10px; text-decoration:none; }
+  .file-desc .related a:hover { border-color:var(--accent); }
+  .file-desc .related a.missing { color:var(--muted); border-style:dashed; cursor:default; }
+
+  /* ---------- floating "jump back" button ---------- */
+  .backbtn { position:fixed; left:50%; bottom:70px; transform:translateX(-50%); z-index:56;
+    background:var(--accent2); color:#fff; border:0; border-radius:24px; padding:9px 18px; cursor:pointer;
+    font-size:.85rem; box-shadow:0 6px 20px rgba(0,0,0,.35); display:none; }
+  .backbtn.show { display:block; }
+
+  /* inline + panel note editor */
+  .noteedit { display:table-row; }
+  .noteedit > span { display:table-cell; }
+  .noteedit .box { grid-column:1/-1; background:var(--notebg); border-top:1px solid var(--note); padding:8px 12px; }
+  .noteedit textarea { width:100%; min-height:52px; background:var(--panel); color:var(--txt);
+    border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-family:inherit; font-size:.82rem; resize:vertical; }
+  .noteedit .btns { margin-top:6px; display:flex; gap:8px; }
+  .noteedit button { border:1px solid var(--border); background:var(--panel); color:var(--txt);
+    border-radius:6px; padding:4px 12px; cursor:pointer; font-size:.8rem; }
+  .noteedit button.save { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* ---------- notes side panel ---------- */
+  .notespanel { position:fixed; top:0; right:0; width:380px; max-width:92vw; height:100vh; background:var(--panel);
+    border-left:1px solid var(--border); z-index:60; transform:translateX(100%); transition:transform .2s;
+    display:flex; flex-direction:column; }
+  .notespanel.open { transform:none; }
+  .notespanel h3 { margin:0; padding:16px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  .notespanel .list { flex:1; overflow-y:auto; padding:12px; }
+  .noteitem { border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:10px; background:var(--panel2); }
+  .noteitem .anchor { font-family:var(--mono); font-size:.74rem; color:var(--accent); word-break:break-all; cursor:pointer; }
+  .noteitem .body { font-size:.86rem; margin:6px 0; white-space:pre-wrap; }
+  .noteitem .del { color:var(--del); cursor:pointer; font-size:.76rem; float:right; }
+  .notespanel .foot { padding:12px; border-top:1px solid var(--border); display:flex; gap:8px; }
+  .notespanel .foot button { flex:1; border:1px solid var(--border); background:var(--panel); color:var(--txt);
+    border-radius:8px; padding:8px; cursor:pointer; font-size:.82rem; }
+  .notespanel .foot button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .notes-empty { color:var(--muted); text-align:center; padding:30px 10px; font-size:.86rem; }
+
+  .note-cl { border-left:3px solid var(--accent); background:var(--panel2); padding:10px 14px;
+    border-radius:0 8px 8px 0; margin:12px 0; font-size:.9rem; }
+  .note-cl.warn { border-color:var(--warn); background:var(--warnbg); }
+  .note-cl.ok { border-color:var(--ok); background:var(--okbg); }
+  .note-cl.sec { border-color:var(--del); background:var(--delbg); }
+
+  .flow { display:flex; flex-direction:column; margin:16px 0; }
+  .step { display:flex; gap:14px; }
+  .step .rail { display:flex; flex-direction:column; align-items:center; }
+  .step .dot { width:26px; height:26px; border-radius:50%; background:var(--panel2); border:2px solid var(--accent);
+    color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:700; flex-shrink:0; }
+  .step .line { width:2px; flex:1; background:var(--border); min-height:14px; }
+  .step .body { padding-bottom:18px; } .step .body b { display:block; } .step .body span { color:var(--muted); font-size:.88rem; }
+
+  ul.checks { list-style:none; padding:0; }
+  ul.checks li { padding:8px 30px 8px 28px; position:relative; border-bottom:1px solid var(--border); }
+  ul.checks li::before { position:absolute; left:0; top:8px; }
+  ul.checks li.good::before { content:'✓'; color:var(--ok); }
+  ul.checks li.watch::before { content:'!'; color:var(--warn); font-weight:700; }
+  ul.checks li.risk::before { content:'▲'; color:var(--del); }
+  ul.checks li.hasnote { box-shadow:inset 3px 0 0 var(--note); }
+  ul.checks li .addnote { position:absolute; right:4px; top:8px; background:var(--accent); color:#fff; border:none;
+    border-radius:4px; width:18px; height:18px; cursor:pointer; font-size:.72rem; padding:0; opacity:.35; }
+  ul.checks li:hover .addnote { opacity:1; }
+
+  code.inline { font-family:var(--mono); background:var(--panel2); padding:1px 6px; border-radius:5px; font-size:.85em; color:var(--accent); }
+  .foot { color:var(--muted); font-size:.8rem; text-align:center; margin-top:40px; padding-top:20px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button id="fileNavToggle">📑 檔案</button>
+  <button id="themeToggle">◐ 主題</button>
+  <button id="notesBtn">📋 審查註記<span class="cnt" id="notesCount">0</span></button>
+</div>
+
+<!-- left file navigator: auto-built from every .prdiff, click to jump -->
+<nav class="filenav" id="filenav"></nav>
+
+<!-- floating "jump back" button: appears after a related-file jump -->
+<button class="backbtn" id="backbtn">↩ 返回上一處</button>
+
+<!-- notes side panel -->
+<div class="notespanel" id="notesPanel">
+  <h3>審查註記 <span style="cursor:pointer" id="notesClose">✕</span></h3>
+  <div class="list" id="notesList"></div>
+  <div class="foot">
+    <button id="copyNotes">複製 Markdown</button>
+    <button class="primary" id="dlNotes">下載 .md</button>
+  </div>
+</div>
+
+<!-- floating action bar for line-range selection -->
+<div class="selbar" id="selbar">
+  <span class="selhint" id="selhint">已選 0 行</span>
+  <button class="go" id="selNote">💬 為選取行加註記</button>
+  <button class="x" id="selClear">取消</button>
+</div>
+
+<div class="wrap">
+<header>
+  <h1>Code Review · <span class="tag">{{SCOPE_TITLE}}</span></h1>
+  <div class="sub">{{DIFF_STAT_SUMMARY}}</div>
+  <div class="commits">
+    <div class="commit"><span class="h">{{HASH}}</span><span class="s">{{SUBJECT}}</span></div>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-tab="overview">總覽</button>
+  <button data-tab="diff">PR Diff</button>
+  <button data-tab="detail">流水線解說</button>
+  <button data-tab="risk">風險與註記</button>
+</nav>
+
+<!-- ============ OVERVIEW ============ -->
+<section id="overview" class="active">
+  <h2>這次改動在做什麼</h2>
+  <p class="lead">{{ONE_LINE_SUMMARY}}</p>
+  <div class="grid2">
+    <div class="card"><span class="pill a">STORY A</span><h3>{{TITLE}}</h3><p>{{WHAT}}</p></div>
+    <div class="card"><span class="pill b">STORY B</span><h3>{{TITLE}}</h3><p>{{WHAT}}</p></div>
+  </div>
+  <div class="note-cl ok"><b>整體結論:</b> {{VERDICT}}</div>
+  <div class="note-cl"><b>怎麼用這份報告:</b> 到「PR Diff」分頁, 滑到任一行程式碼會出現 <b>💬</b>, 點它寫下「這段有什麼問題、該怎麼修」; 「風險與註記」的每條 finding 也能加註記。所有註記存在瀏覽器(重整不掉), 右上「📋 審查註記」可檢視並<b>匯出 Markdown</b> 貼回 GitLab/GitHub PR。</div>
+</section>
+
+<!-- ============ PR DIFF ============ -->
+<section id="diff">
+  <h2>PR Diff <span class="lead" style="font-size:.85rem">點行號選一行, Shift+點行號選多行 → 為整段加註記</span></h2>
+
+  <!--
+    One .prdiff per file. Set data-file to the repo-relative path (used as the note anchor).
+    Each code row: <div class="row add|del|ctx|hunk" data-line="NEW_LINE_NO"> with
+      <span class="gut">OLD</span><span class="gut">NEW</span><span class="code">…</span>
+    Use the real line numbers from `git diff` hunk headers so notes anchor to actual lines.
+    For hunk headers, leave the gut cells blank and put the @@ line in .code.
+
+    Above each file, add a .file-desc so the reviewer knows what this diff does
+    BEFORE reading it. In .related, link sibling files with data-jump="<repo path>"
+    (must match another .prdiff's data-file); clicking jumps there and shows the
+    floating "↩ 返回" button. Links whose path isn't in the diff render as a dim
+    non-clickable chip automatically.
+  -->
+  <div class="file-desc">
+    <div class="fd-title">{{PATH}}</div>
+    <div>{{ONE_PARAGRAPH: what this file's change does + why a reviewer cares}}</div>
+    <div class="related">
+      <span class="lbl">相關檔案:</span>
+      <a data-jump="{{OTHER_PATH_IN_DIFF}}">{{OTHER_PATH_IN_DIFF}}</a>
+    </div>
+  </div>
+  <div class="prdiff" data-file="{{PATH}}">
+    <div class="prdiff-head">
+      <span class="fname">{{PATH}}</span>
+      <span class="meta"><span class="plus">+{{ADD}}</span> <span class="minus">-{{DEL}}</span> · 點擊收合</span>
+    </div>
+    <div class="prdiff-body">
+      <div class="row hunk"><span class="gut"></span><span class="gut"></span><span class="code">@@ -{{o}},{{oc}} +{{n}},{{nc}} @@ {{ctx}}</span></div>
+      <div class="row ctx"  data-line="{{n}}"><span class="gut">{{o}}</span><span class="gut">{{n}}</span><span class="code">unchanged line</span></div>
+      <div class="row del"  data-line="{{n}}"><span class="gut">{{o}}</span><span class="gut"></span><span class="code">removed line</span></div>
+      <div class="row add"  data-line="{{n}}"><span class="gut"></span><span class="gut">{{n}}</span><span class="code">added line   <span class="anno">// why</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DETAIL (pipeline) ============ -->
+<section id="detail">
+  <h2>流水線解說</h2>
+  <div class="flow">
+    <div class="step"><div class="rail"><div class="dot">1</div><div class="line"></div></div>
+      <div class="body"><b>{{STEP}}</b><span>{{DETAIL}}</span></div></div>
+    <div class="step"><div class="rail"><div class="dot" style="border-color:var(--add);color:var(--add)">2</div></div>
+      <div class="body"><b>{{STEP}}</b><span>{{DETAIL}}</span></div></div>
+  </div>
+  <div class="note-cl"><b>解說:</b> {{WHY}}</div>
+</section>
+
+<!-- ============ RISK + notes ============ -->
+<section id="risk">
+  <h2>風險與注意事項 <span class="lead" style="font-size:.85rem">每條可加 💬 註記</span></h2>
+  <p class="lead">依嚴重度排序. ✓ 做得好 · ! 值得留意 · ▲ 建議討論</p>
+  <ul class="checks">
+    <li class="risk" data-anchor="risk:{{SLUG}}"><b>{{HIGH}}</b><br>{{DETAIL_AND_SUGGESTION}}</li>
+    <li class="watch" data-anchor="risk:{{SLUG}}"><b>{{MED}}</b><br>{{DETAIL}}</li>
+    <li class="good" data-anchor="risk:{{SLUG}}"><b>{{GOOD}}</b> {{WHY}}</li>
+  </ul>
+</section>
+
+<div class="foot">{{FOOTER — scope + generated note}}</div>
+</div>
+
+<script>
+// ---- theme toggle ----
+(function () {
+  const root = document.documentElement, key = 'cr-theme';
+  const saved = localStorage.getItem(key);
+  if (saved) root.setAttribute('data-theme', saved);
+  document.getElementById('themeToggle').onclick = () => {
+    const cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next); localStorage.setItem(key, next);
+  };
+})();
+
+// ---- tab nav ----
+document.querySelectorAll('nav button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('section').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+});
+
+// ---- PR diff: collapse files ----
+document.querySelectorAll('.prdiff-head').forEach(h => {
+  h.onclick = () => h.parentElement.classList.toggle('collapsed');
+});
+
+// ---- left file navigator + cross-file jump w/ return button ----
+(function () {
+  const nav = document.getElementById('filenav');
+  const backbtn = document.getElementById('backbtn');
+  const files = [...document.querySelectorAll('.prdiff')];
+  if (!files.length) return;
+  const findPd = path => files.find(p => p.dataset.file === path);
+
+  // build the sidebar from the diff files (name + change counts)
+  nav.innerHTML = '<div class="fn-title">變更檔案 (' + files.length + ')</div>' + files.map(pd => {
+    const f = pd.dataset.file || 'file', m = pd.querySelector('.prdiff-head .meta');
+    const plus = m?.querySelector('.plus')?.textContent || '', minus = m?.querySelector('.minus')?.textContent || '';
+    return '<a data-file="' + f + '"><span class="fn-name">' + f + '</span>'
+      + '<span class="fn-stat"><span class="plus">' + plus + '</span> <span class="minus">' + minus + '</span></span></a>';
+  }).join('');
+
+  const jumpStack = [];
+  function scrollToFile(path, record) {
+    const pd = findPd(path); if (!pd) return;         // ponytail: target outside the diff -> no-op
+    const diffActive = document.getElementById('diff').classList.contains('active');
+    if (!diffActive) document.querySelector('nav button[data-tab="diff"]')?.click();
+    if (record) { jumpStack.push(window.scrollY); backbtn.classList.add('show'); }
+    pd.classList.remove('collapsed');
+    setTimeout(() => pd.scrollIntoView({ behavior: 'smooth', block: 'start' }), diffActive ? 0 : 320);
+  }
+
+  nav.querySelectorAll('a').forEach(a => a.onclick = () => scrollToFile(a.dataset.file, false));
+
+  // related-file chips: jump (recording return) or dim if not in the diff
+  document.querySelectorAll('.file-desc .related a[data-jump]').forEach(a => {
+    if (!findPd(a.dataset.jump)) { a.classList.add('missing'); return; }
+    a.onclick = e => { e.preventDefault(); scrollToFile(a.dataset.jump, true); };
+  });
+
+  backbtn.onclick = () => {
+    const y = jumpStack.pop();
+    if (y != null) window.scrollTo({ top: y, behavior: 'smooth' });
+    if (!jumpStack.length) backbtn.classList.remove('show');
+  };
+
+  // scroll-spy: highlight the file currently in view
+  const io = new IntersectionObserver(ents => ents.forEach(e => {
+    if (!e.isIntersecting) return;
+    const f = e.target.dataset.file;
+    nav.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.file === f));
+  }), { rootMargin: '-10% 0px -80% 0px' });
+  files.forEach(p => io.observe(p));
+
+  // auto-show on the PR Diff tab only when the viewport is wide enough to not
+  // overlap the centered content; the toolbar button toggles it manually anywhere.
+  const syncNav = () => nav.classList.toggle('show',
+    document.getElementById('diff').classList.contains('active') && innerWidth >= 1400);
+  document.querySelectorAll('nav button[data-tab]').forEach(b => b.addEventListener('click', syncNav));
+  document.getElementById('fileNavToggle').onclick = () => nav.classList.toggle('show');
+  syncNav();
+})();
+
+// ---- review notes (line-range selection + code-embedding export) ----
+(function () {
+  const KEY = 'crnotes:' + (document.querySelector('h1')?.textContent.trim() || location.pathname);
+  let notes = {};   // anchor -> {type:'code', file, l1, l2, lines:[{n,mark,text}], text} | {type:'finding', label, text}
+  try { notes = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { notes = {}; }
+  const save = () => localStorage.setItem(KEY, JSON.stringify(notes));
+
+  // --- helpers to read a diff row ---
+  const rowsOf = pd => [...pd.querySelectorAll('.prdiff-body .row:not(.hunk)')];
+  function lineOf(row) { // effective line number: new side if present, else old side
+    const g = row.querySelectorAll('.gut');
+    return (g[1] && g[1].textContent.trim()) || (g[0] && g[0].textContent.trim()) || '?';
+  }
+  function markOf(row) { return row.classList.contains('add') ? '+' : row.classList.contains('del') ? '-' : ' '; }
+  function codeOf(row) { // source text without our injected +/- glyph, addnote button or .anno comment
+    const c = row.querySelector('.code').cloneNode(true);
+    c.querySelectorAll('.addnote,.anno').forEach(n => n.remove());
+    return c.textContent.replace(/\s+$/, '');
+  }
+  function snapshot(selRows) {
+    const file = selRows[0].closest('.prdiff').dataset.file || 'file';
+    const lines = selRows.map(r => ({ n: lineOf(r), mark: markOf(r), text: codeOf(r) }));
+    const l1 = lines[0].n, l2 = lines[lines.length - 1].n;
+    const anchor = file + ':L' + l1 + (l1 === l2 ? '' : '-L' + l2);
+    return { anchor, note: { type: 'code', file, l1, l2, lines } };
+  }
+
+  // --- multi-line selection on line-number gutters ---
+  let sel = { pd: null, rows: [] };
+  const selbar = document.getElementById('selbar');
+  function applySel() {
+    document.querySelectorAll('.row.selected').forEach(r => r.classList.remove('selected'));
+    sel.rows.forEach(r => r.classList.add('selected'));
+    if (sel.rows.length) {
+      document.getElementById('selhint').textContent = '已選 ' + sel.rows.length + ' 行';
+      selbar.classList.add('show');
+    } else selbar.classList.remove('show');
+  }
+  function clearSel() { sel = { pd: null, rows: [] }; applySel(); }
+  document.addEventListener('click', e => {
+    const gut = e.target.closest('.gut');
+    if (!gut) return;
+    const row = gut.closest('.row');
+    if (!row || row.classList.contains('hunk')) return;
+    const pd = row.closest('.prdiff');
+    if (e.shiftKey && sel.pd === pd && sel.rows.length) {
+      const rs = rowsOf(pd), a = rs.indexOf(sel.rows[0]), b = rs.indexOf(row);
+      sel.rows = rs.slice(Math.min(a, b), Math.max(a, b) + 1);
+    } else {
+      sel = { pd, rows: [row] };
+    }
+    applySel();
+  });
+  document.getElementById('selClear').onclick = clearSel;
+  document.getElementById('selNote').onclick = () => {
+    if (!sel.rows.length) return;
+    const snap = snapshot(sel.rows);
+    openEditor(snap.anchor, sel.rows[sel.rows.length - 1].parentElement, snap.note);
+  };
+
+  // --- findings get a 💬 button (no code snippet) ---
+  function inject() {
+    document.querySelectorAll('ul.checks li[data-anchor]').forEach(li => {
+      if (li.querySelector('.addnote')) return;
+      const b = document.createElement('button'); b.className = 'addnote'; b.textContent = '💬'; b.title = '加審查註記';
+      li.appendChild(b);
+    });
+    refreshMarks();
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.classList.contains('addnote')) return;
+    e.stopPropagation();
+    const li = e.target.closest('[data-anchor]'); if (!li) return;
+    openEditor(li.dataset.anchor, li, { type: 'finding', label: (li.querySelector('b')?.textContent || li.dataset.anchor).trim() });
+  });
+
+  function refreshMarks() {
+    // highlight every diff row whose line falls inside a saved code-note range
+    const ranges = Object.values(notes).filter(n => n.type === 'code');
+    document.querySelectorAll('.prdiff-body .row:not(.hunk)').forEach(r => {
+      const file = r.closest('.prdiff').dataset.file, ln = lineOf(r);
+      const hit = ranges.some(n => n.file === file && within(ln, n.l1, n.l2));
+      r.classList.toggle('hasnote', hit);
+    });
+    document.querySelectorAll('ul.checks li[data-anchor]').forEach(li => {
+      li.classList.toggle('hasnote', !!notes[li.dataset.anchor]);
+    });
+    document.getElementById('notesCount').textContent = Object.keys(notes).length;
+  }
+  function within(x, a, b) { const n = +x, lo = +a, hi = +b; return !isNaN(n) && n >= Math.min(lo, hi) && n <= Math.max(lo, hi); }
+
+  // --- editor ---
+  let openBox = null;
+  function openEditor(anchor, afterEl, meta) {
+    if (openBox) { openBox.remove(); openBox = null; }
+    const existing = notes[anchor];
+    const box = document.createElement('div'); box.className = 'note-cl warn'; box.style.margin = '6px 0';
+    box.innerHTML = '<div style="font-family:var(--mono);font-size:.74rem;color:var(--accent)">' + anchor + '</div>'
+      + '<textarea placeholder="這段 code 的問題 / 建議怎麼修..." style="width:100%;min-height:60px;background:var(--panel);'
+      + 'color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:6px;margin-top:6px;font:inherit"></textarea>'
+      + '<div style="margin-top:6px;display:flex;gap:8px">'
+      + '<button class="save" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:5px 14px;cursor:pointer">儲存</button>'
+      + '<button class="cancel" style="border:1px solid var(--border);background:var(--panel);color:var(--txt);border-radius:6px;padding:5px 14px;cursor:pointer">取消</button>'
+      + (existing ? '<button class="del" style="border:1px solid var(--border);background:var(--panel);color:var(--del);border-radius:6px;padding:5px 14px;cursor:pointer;margin-left:auto">刪除</button>' : '')
+      + '</div>';
+    const ta = box.querySelector('textarea'); ta.value = existing ? existing.text : '';
+    afterEl.closest('.prdiff') ? afterEl.closest('.prdiff').after(box) : afterEl.after(box);
+    openBox = box; ta.focus();
+    const close = () => { if (openBox) { openBox.remove(); openBox = null; } };
+    box.querySelector('.save').onclick = () => {
+      const v = ta.value.trim();
+      if (!v) delete notes[anchor];
+      else if (meta.type === 'code') notes[anchor] = { type: 'code', file: meta.file, l1: meta.l1, l2: meta.l2, lines: meta.lines, text: v };
+      else notes[anchor] = { type: 'finding', label: meta.label, text: v };
+      save(); refreshMarks(); renderPanel(); clearSel(); close();
+    };
+    box.querySelector('.cancel').onclick = close;
+    if (box.querySelector('.del')) box.querySelector('.del').onclick = () => { delete notes[anchor]; save(); refreshMarks(); renderPanel(); close(); };
+  }
+
+  // --- side panel ---
+  const panel = document.getElementById('notesPanel');
+  document.getElementById('notesBtn').onclick = () => { renderPanel(); panel.classList.add('open'); };
+  document.getElementById('notesClose').onclick = () => panel.classList.remove('open');
+  function renderPanel() {
+    const list = document.getElementById('notesList'), keys = Object.keys(notes);
+    if (!keys.length) { list.innerHTML = '<div class="notes-empty">尚無註記。到 PR Diff 點行號選一或多行, 或在風險分頁點 💬 新增。</div>'; return; }
+    list.innerHTML = '';
+    keys.forEach(a => {
+      const n = notes[a];
+      const d = document.createElement('div'); d.className = 'noteitem';
+      d.innerHTML = '<span class="del" title="刪除">✕</span><div class="anchor"></div>'
+        + (n.type === 'code' ? '<pre style="margin:6px 0;padding:6px;background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow-x:auto;font-family:var(--mono);font-size:.72rem"></pre>' : '')
+        + '<div class="body"></div>';
+      d.querySelector('.anchor').textContent = a;
+      d.querySelector('.anchor').onclick = () => jumpTo(a);
+      if (n.type === 'code') d.querySelector('pre').textContent = n.lines.map(l => l.n + ' ' + l.mark + ' ' + l.text).join('\n');
+      d.querySelector('.body').textContent = n.text;
+      d.querySelector('.del').onclick = () => { delete notes[a]; save(); refreshMarks(); renderPanel(); };
+      list.appendChild(d);
+    });
+  }
+  function jumpTo(anchor) {
+    const n = notes[anchor];
+    let target = null;
+    if (n && n.type === 'code') {
+      target = [...document.querySelectorAll('.prdiff-body .row:not(.hunk)')]
+        .find(r => r.closest('.prdiff').dataset.file === n.file && lineOf(r) == n.l1);
+    } else {
+      target = document.querySelector('ul.checks li[data-anchor="' + anchor + '"]');
+    }
+    if (target) {
+      const sec = target.closest('section');
+      document.querySelector('nav button[data-tab="' + sec.id + '"]')?.click();
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const o = target.style.background; target.style.transition = 'background .2s';
+      target.style.background = 'var(--notebg)'; setTimeout(() => target.style.background = o, 1200);
+    }
+    panel.classList.remove('open');
+  }
+
+  // --- export: embeds file, line range AND the selected source lines ---
+  function toMarkdown() {
+    const title = document.querySelector('h1')?.textContent.replace(/\s+/g, ' ').trim() || 'Code Review';
+    let md = '# 審查註記 — ' + title + '\n\n';
+    const code = Object.entries(notes).filter(([, n]) => n.type === 'code');
+    const finds = Object.entries(notes).filter(([, n]) => n.type === 'finding');
+    // group code notes by file
+    const byFile = {};
+    code.forEach(([a, n]) => (byFile[n.file] = byFile[n.file] || []).push([a, n]));
+    Object.keys(byFile).sort().forEach(f => {
+      md += '## `' + f + '`\n\n';
+      byFile[f].sort((x, y) => (+x[1].l1) - (+y[1].l1)).forEach(([, n]) => {
+        const w = Math.max(...n.lines.map(l => String(l.n).length));
+        md += '### L' + n.l1 + (n.l1 === n.l2 ? '' : '–L' + n.l2) + '\n';
+        md += '```\n' + n.lines.map(l => String(l.n).padStart(w) + ' ' + l.mark + ' ' + l.text).join('\n') + '\n```\n';
+        md += '**問題 / 建議:** ' + n.text.replace(/\n/g, '\n> ') + '\n\n';
+      });
+    });
+    if (finds.length) {
+      md += '## 風險 / Findings\n\n';
+      finds.forEach(([, n]) => { md += '- **' + n.label + '**: ' + n.text.replace(/\n/g, ' ') + '\n'; });
+      md += '\n';
+    }
+    return md;
+  }
+  document.getElementById('copyNotes').onclick = () => {
+    navigator.clipboard.writeText(toMarkdown()).then(() => {
+      const b = document.getElementById('copyNotes'), t = b.textContent;
+      b.textContent = '已複製 ✓'; setTimeout(() => b.textContent = t, 1400);
+    });
+  };
+  document.getElementById('dlNotes').onclick = () => {
+    const blob = new Blob([toMarkdown()], { type: 'text/markdown' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'review-notes.md'; a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  inject();
+})();
+</script>
+</body>
+</html>

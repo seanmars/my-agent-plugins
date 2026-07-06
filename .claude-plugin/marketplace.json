@@ -31,6 +31,15 @@
       "author": {
         "name": "seanmars"
       }
+    },
+    {
+      "name": "code-review-helper",
+      "source": "./plugins/code-review-helper",
+      "description": "Generate an interactive, self-contained HTML code-review report that walks a reviewer through a set of changes as a pipeline.",
+      "category": "code-review",
+      "author": {
+        "name": "seanmars"
+      }
     }
   ]
 }

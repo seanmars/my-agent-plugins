@@ -1,0 +1,9 @@
+{
+  "name": "code-review-helper",
+  "version": "0.0.1",
+  "description": "Generate an interactive, self-contained HTML code-review report that walks a reviewer through a set of changes as a pipeline.",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["code review", "html", "report", "skill", "diff", "walkthrough"]
+}
