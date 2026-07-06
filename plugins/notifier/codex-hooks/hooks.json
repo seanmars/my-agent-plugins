@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion|ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/hooks/scripts/notify.py --hook ${PLUGIN_ROOT}"
+          }
+        ]
+      }
+    ]
+  }
+}

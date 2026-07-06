@@ -1,0 +1,10 @@
+{
+  "name": "notifier",
+  "hooks": "./codex-hooks/hooks.json",
+  "version": "0.5.0",
+  "description": "Cross-platform native notifications (Windows Toast / macOS) for Codex hook events",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["notifications"]
+}
