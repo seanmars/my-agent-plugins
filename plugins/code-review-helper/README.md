@@ -24,7 +24,7 @@
 2. 取得 diff 並對照實際程式碼驗證
 3. 分析並分組成獨立的 "stories"
 4. 以 `assets/template.html` 為底產生 HTML
-5. 預設輸出到 repo 根目錄的 `code-review/index.html`
+5. 預設輸出到 repo 根目錄的 `code-review/code-review-{yyyyMMddHHmm}.html`
 
 ## 目錄結構
 

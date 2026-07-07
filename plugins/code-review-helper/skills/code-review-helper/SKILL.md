@@ -157,7 +157,8 @@ Constraints:
 
 ## Step 5 — Output location and hand-off
 
-Default output: `code-review/index.html` in the repo root (create the folder).
+Default output: `code-review/code-review-{yyyyMMddHHmm}.html` in the repo root
+(create the folder; use the current local time, e.g. `code-review-202607071530.html`).
 Honor any path the user gave. After writing, sanity-check the file:
 - **scope fidelity: the set of `.prdiff data-file` values equals `git diff --name-only
   <range>` (minus filtered files) — no extra files, none missing.** If they differ, the

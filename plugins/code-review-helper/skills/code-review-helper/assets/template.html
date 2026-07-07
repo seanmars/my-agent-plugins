@@ -22,28 +22,20 @@
 <title>Code Review — {{SCOPE_TITLE}}</title>
 <style>
   :root {
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
-    --txt:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#a371f7;
-    --add:#3fb950; --addbg:#12261e; --addgut:#1b3326; --del:#f85149; --delbg:#2a1517; --delgut:#3d1a1c;
-    --warn:#d29922; --warnbg:#2a2211; --ok:#3fb950; --okbg:#10261c;
-    --note:#e3b341; --notebg:#2b2412;
-    --mono:'Cascadia Code','SF Mono',Consolas,'Courier New',monospace;
-  }
-  :root[data-theme="light"] {
     --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --border:#d0d7de;
     --txt:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#8250df;
     --add:#1a7f37; --addbg:#e6ffec; --addgut:#ccffd8; --del:#cf222e; --delbg:#ffebe9; --delgut:#ffd7d5;
     --warn:#9a6700; --warnbg:#fff8c5; --ok:#1a7f37; --okbg:#e6ffec;
     --note:#9a6700; --notebg:#fff8c5;
+    --mono:'Cascadia Code','SF Mono',Consolas,'Courier New',monospace;
   }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg:#f6f8fa; --panel:#fff; --panel2:#f0f3f6; --border:#d0d7de;
-      --txt:#1f2328; --muted:#636c76; --accent:#0969da; --accent2:#8250df;
-      --add:#1a7f37; --addbg:#e6ffec; --addgut:#ccffd8; --del:#cf222e; --delbg:#ffebe9; --delgut:#ffd7d5;
-      --warn:#9a6700; --warnbg:#fff8c5; --ok:#1a7f37; --okbg:#e6ffec;
-      --note:#9a6700; --notebg:#fff8c5;
-    }
+  /* ponytail: light is the default; dark is opt-in via the toggle only (no prefers-color-scheme auto-switch) */
+  :root[data-theme="dark"] {
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --txt:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --accent2:#a371f7;
+    --add:#3fb950; --addbg:#12261e; --addgut:#1b3326; --del:#f85149; --delbg:#2a1517; --delgut:#3d1a1c;
+    --warn:#d29922; --warnbg:#2a2211; --ok:#3fb950; --okbg:#10261c;
+    --note:#e3b341; --notebg:#2b2412;
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--txt);
@@ -117,13 +109,19 @@
   .gut { cursor:pointer; }
   .row.selected .code { background:var(--notebg); }
   .row.selected .gut { background:var(--note); color:#000; }
-  .selbar { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:55;
-    background:var(--panel); border:1px solid var(--accent); border-radius:24px; padding:8px 12px;
-    display:none; gap:10px; align-items:center; box-shadow:0 6px 20px rgba(0,0,0,.35); font-size:.85rem; }
+  /* selection bar floats at the right-middle so it's always in reach while reading the diff */
+  .selbar { position:fixed; right:20px; top:50%; transform:translateY(-50%); z-index:55;
+    background:var(--panel); border:1px solid var(--accent); border-radius:16px; padding:12px;
+    display:none; flex-direction:column; gap:10px; align-items:stretch; box-shadow:0 6px 20px rgba(0,0,0,.25); font-size:.85rem; }
   .selbar.show { display:flex; }
-  .selbar button { border:0; border-radius:16px; padding:6px 14px; cursor:pointer; font-size:.83rem; }
+  .selbar button { border:0; border-radius:12px; padding:8px 14px; cursor:pointer; font-size:.83rem; }
   .selbar .go { background:var(--accent); color:#fff; } .selbar .x { background:var(--panel2); color:var(--txt); }
-  .selhint { color:var(--muted); }
+  .selhint { color:var(--muted); text-align:center; }
+
+  /* floating note editor: docked at the right-middle, over the diff */
+  .notefloat { position:fixed; right:20px; top:50%; transform:translateY(-50%); z-index:58;
+    width:340px; max-width:90vw; background:var(--panel); border:1px solid var(--accent);
+    border-radius:12px; padding:14px; box-shadow:0 8px 28px rgba(0,0,0,.3); }
 
   /* ---------- left file navigator (auto-built from .prdiff) ---------- */
   .filenav { position:fixed; left:14px; top:110px; width:236px; max-height:calc(100vh - 150px);
@@ -156,6 +154,12 @@
     background:var(--accent2); color:#fff; border:0; border-radius:24px; padding:9px 18px; cursor:pointer;
     font-size:.85rem; box-shadow:0 6px 20px rgba(0,0,0,.35); display:none; }
   .backbtn.show { display:block; }
+
+  /* ---------- floating "next flow" button (bottom-right, cycles nav tabs) ---------- */
+  .nextbtn { position:fixed; right:20px; bottom:20px; z-index:57;
+    background:var(--accent); color:#fff; border:0; border-radius:24px; padding:11px 20px; cursor:pointer;
+    font-size:.9rem; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+  .nextbtn:hover { filter:brightness(1.08); }
 
   /* inline + panel note editor */
   .noteedit { display:table-row; }
@@ -227,6 +231,9 @@
 <!-- floating "jump back" button: appears after a related-file jump -->
 <button class="backbtn" id="backbtn">↩ 返回上一處</button>
 
+<!-- floating "next flow" button: jumps to the next nav tab -->
+<button class="nextbtn" id="nextFlowBtn" title="下一個流程">下一步 ↓</button>
+
 <!-- notes side panel -->
 <div class="notespanel" id="notesPanel">
   <h3>審查註記 <span style="cursor:pointer" id="notesClose">✕</span></h3>
@@ -255,9 +262,10 @@
 
 <nav>
   <button class="active" data-tab="overview">總覽</button>
-  <button data-tab="diff">PR Diff</button>
   <button data-tab="detail">流水線解說</button>
+  <button data-tab="verify">互動驗證</button>
   <button data-tab="risk">風險與註記</button>
+  <button data-tab="diff">PR Diff</button>
 </nav>
 
 <!-- ============ OVERVIEW ============ -->
@@ -323,6 +331,16 @@
   <div class="note-cl"><b>解說:</b> {{WHY}}</div>
 </section>
 
+<!-- ============ VERIFY (interactive checks) ============ -->
+<section id="verify">
+  <h2>互動驗證 <span class="lead" style="font-size:.85rem">勾選你已親自確認過的項目</span></h2>
+  <p class="lead">逐項驗證這次改動的行為. ✓ 已驗證 · ! 待確認 · ▲ 需人工測試</p>
+  <ul class="checks">
+    <li class="watch" data-anchor="verify:{{SLUG}}"><b>{{CHECK}}</b><br>{{HOW_TO_VERIFY}}</li>
+    <li class="good" data-anchor="verify:{{SLUG}}"><b>{{CHECK}}</b> {{RESULT}}</li>
+  </ul>
+</section>
+
 <!-- ============ RISK + notes ============ -->
 <section id="risk">
   <h2>風險與注意事項 <span class="lead" style="font-size:.85rem">每條可加 💬 註記</span></h2>
@@ -344,7 +362,7 @@
   const saved = localStorage.getItem(key);
   if (saved) root.setAttribute('data-theme', saved);
   document.getElementById('themeToggle').onclick = () => {
-    const cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const cur = root.getAttribute('data-theme') || 'light';
     const next = cur === 'dark' ? 'light' : 'dark';
     root.setAttribute('data-theme', next); localStorage.setItem(key, next);
   };
@@ -360,6 +378,13 @@ document.querySelectorAll('nav button').forEach(b => {
   };
 });
 
+// ---- floating "next flow" button: advance to the next nav tab (wraps around) ----
+document.getElementById('nextFlowBtn').onclick = () => {
+  const btns = [...document.querySelectorAll('nav button[data-tab]')];
+  const i = btns.findIndex(b => b.classList.contains('active'));
+  btns[(i + 1) % btns.length].click();
+};
+
 // ---- PR diff: collapse files ----
 document.querySelectorAll('.prdiff-head').forEach(h => {
   h.onclick = () => h.parentElement.classList.toggle('collapsed');
@@ -372,6 +397,9 @@ document.querySelectorAll('.prdiff-head').forEach(h => {
   const files = [...document.querySelectorAll('.prdiff')];
   if (!files.length) return;
   const findPd = path => files.find(p => p.dataset.file === path);
+  // scroll target for a path: prefer its .file-desc (description first), fall back to the diff block
+  const descs = [...document.querySelectorAll('.file-desc')];
+  const targetFor = path => descs.find(d => d.querySelector('.fd-title')?.textContent.trim() === path) || findPd(path);
 
   // build the sidebar from the diff files (name + change counts)
   nav.innerHTML = '<div class="fn-title">變更檔案 (' + files.length + ')</div>' + files.map(pd => {
@@ -388,7 +416,8 @@ document.querySelectorAll('.prdiff-head').forEach(h => {
     if (!diffActive) document.querySelector('nav button[data-tab="diff"]')?.click();
     if (record) { jumpStack.push(window.scrollY); backbtn.classList.add('show'); }
     pd.classList.remove('collapsed');
-    setTimeout(() => pd.scrollIntoView({ behavior: 'smooth', block: 'start' }), diffActive ? 0 : 320);
+    const target = targetFor(path);   // anchor to the file-desc when present
+    setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), diffActive ? 0 : 320);
   }
 
   nav.querySelectorAll('a').forEach(a => a.onclick = () => scrollToFile(a.dataset.file, false));
@@ -518,7 +547,8 @@ document.querySelectorAll('.prdiff-head').forEach(h => {
   function openEditor(anchor, afterEl, meta) {
     if (openBox) { openBox.remove(); openBox = null; }
     const existing = notes[anchor];
-    const box = document.createElement('div'); box.className = 'note-cl warn'; box.style.margin = '6px 0';
+    selbar.classList.remove('show');   // don't overlap the floating editor at the right-middle
+    const box = document.createElement('div'); box.className = 'notefloat';
     box.innerHTML = '<div style="font-family:var(--mono);font-size:.74rem;color:var(--accent)">' + anchor + '</div>'
       + '<textarea placeholder="這段 code 的問題 / 建議怎麼修..." style="width:100%;min-height:60px;background:var(--panel);'
       + 'color:var(--txt);border:1px solid var(--border);border-radius:6px;padding:6px;margin-top:6px;font:inherit"></textarea>'
@@ -528,7 +558,7 @@ document.querySelectorAll('.prdiff-head').forEach(h => {
       + (existing ? '<button class="del" style="border:1px solid var(--border);background:var(--panel);color:var(--del);border-radius:6px;padding:5px 14px;cursor:pointer;margin-left:auto">刪除</button>' : '')
       + '</div>';
     const ta = box.querySelector('textarea'); ta.value = existing ? existing.text : '';
-    afterEl.closest('.prdiff') ? afterEl.closest('.prdiff').after(box) : afterEl.after(box);
+    document.body.appendChild(box);   // fixed-position editor: DOM location is cosmetic
     openBox = box; ta.focus();
     const close = () => { if (openBox) { openBox.remove(); openBox = null; } };
     box.querySelector('.save').onclick = () => {
@@ -539,7 +569,7 @@ document.querySelectorAll('.prdiff-head').forEach(h => {
       save(); refreshMarks(); renderPanel(); clearSel(); close();
     };
     box.querySelector('.cancel').onclick = close;
-    if (box.querySelector('.del')) box.querySelector('.del').onclick = () => { delete notes[anchor]; save(); refreshMarks(); renderPanel(); close(); };
+    if (box.querySelector('.del')) box.querySelector('.del').onclick = () => { if (!confirm('確定刪除這則審查註記?')) return; delete notes[anchor]; save(); refreshMarks(); renderPanel(); close(); };
   }
 
   // --- side panel ---
@@ -560,7 +590,7 @@ document.querySelectorAll('.prdiff-head').forEach(h => {
       d.querySelector('.anchor').onclick = () => jumpTo(a);
       if (n.type === 'code') d.querySelector('pre').textContent = n.lines.map(l => l.n + ' ' + l.mark + ' ' + l.text).join('\n');
       d.querySelector('.body').textContent = n.text;
-      d.querySelector('.del').onclick = () => { delete notes[a]; save(); refreshMarks(); renderPanel(); };
+      d.querySelector('.del').onclick = () => { if (!confirm('確定刪除這則審查註記?')) return; delete notes[a]; save(); refreshMarks(); renderPanel(); };
       list.appendChild(d);
     });
   }
