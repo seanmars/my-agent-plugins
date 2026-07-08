@@ -1,6 +1,6 @@
 {
   "name": "my-agent-plugins",
-  "description": "Directory of popular AI extensions including development tools, productivity plugins, and MCP integrations",
+  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, and coding guideline skills",
   "owner": {
     "name": "mars"
   },
@@ -17,7 +17,7 @@
     {
       "name": "notifier",
       "source": "./plugins/notifier",
-      "description": "Windows Toast notifications for Claude Code Stop / Notification events",
+      "description": "Cross-platform native notifications (Windows Toast / macOS) for Claude Code hook events",
       "category": "notifications",
       "author": {
         "name": "seanmars"

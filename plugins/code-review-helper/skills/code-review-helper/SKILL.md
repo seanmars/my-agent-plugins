@@ -4,12 +4,14 @@ description: >-
   Generate an interactive, self-contained HTML code-review report (with a
   light/dark theme toggle) that walks the reader through a set of code changes
   as a step-by-step pipeline: what changed, why, the end-to-end impact, and what
-  to watch out for. Use this whenever the user asks to review code, review a
-  branch / PR / commit / diff, wants a "code review report", a review walkthrough,
-  a visual or interactive review, or wants to understand the impact of a set of
-  changes — even if they don't say the word "HTML". The review scope is flexible:
-  the user can describe exactly what to review, and if they don't, infer a
-  sensible scope from git state and confirm it with them before proceeding.
+  to watch out for. Use this ONLY when the user explicitly asks for an HTML /
+  visual / interactive review report or a shareable review walkthrough page —
+  e.g. "produce an HTML code-review report", "make a visual walkthrough of this
+  branch". Do NOT use for plain code-review requests ("review this code",
+  "review my PR") that don't ask for a report artifact — those belong to the
+  regular review flow. The review scope is flexible: the user can describe
+  exactly what to review, and if they don't, infer a sensible scope from git
+  state and confirm it with them before proceeding.
 ---
 
 # Code Review Helper
