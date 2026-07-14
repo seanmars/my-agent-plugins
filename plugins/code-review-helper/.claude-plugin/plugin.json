@@ -1,6 +1,6 @@
 {
   "name": "code-review-helper",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Generate an interactive, self-contained HTML code-review report that walks a reviewer through a set of changes as a pipeline.",
   "author": {
     "name": "seanmars"

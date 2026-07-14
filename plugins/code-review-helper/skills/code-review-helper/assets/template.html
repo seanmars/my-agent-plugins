@@ -78,11 +78,18 @@
   .pill.new { background:var(--addbg); color:var(--add); }
 
   /* ---------- PR-style diff ---------- */
-  .prdiff { border:1px solid var(--border); border-radius:10px; overflow:hidden; margin:14px 0; }
+  /* ponytail: no overflow:hidden here — it would trap the sticky header in this box instead of the viewport */
+  .prdiff { border:1px solid var(--border); border-radius:10px; margin:14px 0; }
   .prdiff-head { background:var(--panel2); padding:9px 14px; font-family:var(--mono); font-size:.8rem;
-    display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+    display:flex; align-items:center; cursor:pointer; user-select:none;
+    position:sticky; top:var(--navh,56px); z-index:5; border-radius:9px 9px 0 0; }
+  .prdiff.collapsed .prdiff-head { border-radius:9px; }
+  .prdiff-head .rev-check { margin:0 10px 0 0; width:15px; height:15px; flex-shrink:0; cursor:pointer; accent-color:var(--ok); }
   .prdiff-head .fname { color:var(--accent); word-break:break-all; }
-  .prdiff-head .meta { color:var(--muted); white-space:nowrap; margin-left:12px; }
+  .prdiff-head .meta { color:var(--muted); white-space:nowrap; margin-left:auto; padding-left:12px; }
+  /* reviewed files get a green head + struck-through name so confirmed diffs read as "done" */
+  .prdiff.reviewed .prdiff-head { background:var(--okbg); }
+  .prdiff.reviewed .prdiff-head .fname { text-decoration:line-through; color:var(--muted); }
   .prdiff-head .meta .plus { color:var(--add); } .prdiff-head .meta .minus { color:var(--del); }
   .prdiff-body { display:table; width:100%; border-collapse:collapse; font-family:var(--mono); font-size:.78rem; }
   .prdiff.collapsed .prdiff-body { display:none; }
@@ -282,7 +289,7 @@
 
 <!-- ============ PR DIFF ============ -->
 <section id="diff">
-  <h2>PR Diff <span class="lead" style="font-size:.85rem">點行號選一行, Shift+點行號選多行 → 為整段加註記</span></h2>
+  <h2>PR Diff <span class="lead" style="font-size:.85rem">點行號選一行, Shift+點行號選多行 → 為整段加註記 · 檔案標題的 checkbox 可標記已確認</span></h2>
 
   <!--
     One .prdiff per file. Set data-file to the repo-relative path (used as the note anchor).
@@ -374,7 +381,9 @@ document.querySelectorAll('nav button').forEach(b => {
     document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
     document.querySelectorAll('section').forEach(x => x.classList.remove('active'));
     b.classList.add('active'); document.getElementById(b.dataset.tab).classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // the diff tab restores where you left off (set by the diff-state script); other tabs go to top
+    if (b.dataset.tab === 'diff' && window.__restoreDiffScroll) window.__restoreDiffScroll();
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 });
 
@@ -385,10 +394,51 @@ document.getElementById('nextFlowBtn').onclick = () => {
   btns[(i + 1) % btns.length].click();
 };
 
-// ---- PR diff: collapse files ----
-document.querySelectorAll('.prdiff-head').forEach(h => {
-  h.onclick = () => h.parentElement.classList.toggle('collapsed');
-});
+// ---- PR diff state: reviewed-checkbox, collapse, scroll position (all persisted) ----
+(function () {
+  const KEY = 'crdiff:' + (document.querySelector('h1')?.textContent.trim() || location.pathname);
+  const st = { scroll: 0, collapsed: {}, reviewed: {} };
+  try { Object.assign(st, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+  st.collapsed = st.collapsed || {}; st.reviewed = st.reviewed || {};
+  const save = () => localStorage.setItem(KEY, JSON.stringify(st));
+
+  document.querySelectorAll('.prdiff').forEach(pd => {
+    const file = pd.dataset.file || '';
+    const head = pd.querySelector('.prdiff-head');
+    if (!head) return;
+
+    // reviewed checkbox at the front of the head (injected so authors don't hand-write it)
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'rev-check'; cb.title = '標記為已確認';
+    cb.checked = !!st.reviewed[file];
+    pd.classList.toggle('reviewed', cb.checked);
+    head.insertBefore(cb, head.firstChild);
+    cb.addEventListener('click', e => e.stopPropagation());   // clicking it must not collapse the file
+    cb.addEventListener('change', () => {
+      st.reviewed[file] = cb.checked; save();
+      pd.classList.toggle('reviewed', cb.checked);
+    });
+
+    if (st.collapsed[file]) pd.classList.add('collapsed');   // restore collapse state
+    head.addEventListener('click', () => {
+      st.collapsed[file] = pd.classList.toggle('collapsed'); save();
+    });
+  });
+
+  // sticky header sits just below the tab nav; nav can wrap, so measure it
+  const nav = document.querySelector('.wrap > nav');
+  const setNavH = () => document.documentElement.style.setProperty('--navh', ((nav?.offsetHeight) || 56) + 'px');
+  setNavH(); addEventListener('resize', setNavH);
+
+  // remember scroll position while on the diff tab; restore it on return
+  const diffSec = document.getElementById('diff');
+  let t = null;
+  addEventListener('scroll', () => {
+    if (!diffSec.classList.contains('active') || t) return;
+    t = setTimeout(() => { t = null; st.scroll = window.scrollY; save(); }, 200);
+  }, { passive: true });
+  window.__restoreDiffScroll = () => window.scrollTo({ top: st.scroll || 0, behavior: 'auto' });
+})();
 
 // ---- left file navigator + cross-file jump w/ return button ----
 (function () {
