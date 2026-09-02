@@ -1,0 +1,9 @@
+{
+  "name": "architecture-diagram",
+  "version": "0.0.2",
+  "description": "Generate a single-file interactive HTML system architecture diagram for a repository: SVG topology, service cards, communication matrix, and key flows.",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["architecture", "diagram", "html", "svg", "topology", "skill"]
+}

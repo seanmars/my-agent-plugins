@@ -1,6 +1,6 @@
 {
   "name": "my-agent-plugins",
-  "description": "Directory of popular AI extensions including development tools, productivity plugins, and MCP integrations",
+  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, architecture diagrams, and coding guideline skills",
   "owner": {
     "name": "mars"
   },

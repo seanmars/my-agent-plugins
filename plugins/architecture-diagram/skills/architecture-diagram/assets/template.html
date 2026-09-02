@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PROJECT 系統架構圖</title>
+<style>
+  :root{
+    --bg:#0a0e1a;
+    --panel:#131b2e;
+    --panel2:#0f1626;
+    --line:#243049;
+    --txt:#e6edf7;
+    --muted:#8b9bb4;
+    --dim:#5d6c85;
+
+    /* 元件類型色票 (KIND 用). 依專案需要挑用, 不必用滿 */
+    --k1:#94a3b8;  /* slate   */
+    --k2:#c084fc;  /* purple  */
+    --k3:#34d399;  /* emerald */
+    --k4:#f472b6;  /* pink    */
+    --k5:#fbbf24;  /* amber   */
+    --k6:#60a5fa;  /* blue    */
+    --k7:#fb7185;  /* rose    */
+
+    /* 通訊協定色票 (PROTO 用) */
+    --p1:#38bdf8;  /* sky     */
+    --p2:#818cf8;  /* indigo  */
+    --p3:#22d3ee;  /* cyan    */
+    --p4:#fb7185;  /* rose    */
+    --p5:#fbbf24;  /* amber   */
+    --p6:#f472b6;  /* pink    */
+    --p7:#a78bfa;  /* violet  */
+    --p8:#34d399;  /* emerald */
+    --p9:#a3e635;  /* lime    */
+    --p10:#f97316; /* orange  */
+  }
+  *{box-sizing:border-box}
+  /* body 的漸層是 fixed (只鋪滿 viewport), html 補一層純色底,
+     避免內容長過一個畫面時下方露出瀏覽器預設白底 */
+  html{background:var(--bg)}
+  body{
+    margin:0;background:radial-gradient(1200px 800px at 20% -10%,#16203a 0%,var(--bg) 55%) fixed;
+    color:var(--txt);
+    font-family:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:2100px;margin:0 auto;padding:36px 28px 80px}
+  header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:32px;margin:0;letter-spacing:.5px}
+  .sub{color:var(--muted);font-size:16px}
+  h2{font-size:20px;margin:48px 0 16px;letter-spacing:1px;color:#cfe0f5;
+     border-left:4px solid var(--k3);padding-left:12px}
+
+  /* legend */
+  .legend{display:flex;gap:28px;flex-wrap:wrap;margin:18px 0 10px;
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 20px}
+  .lgroup{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .ltitle{font-size:13px;color:var(--dim);letter-spacing:1px;margin-right:2px}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;color:#cbd7ea}
+  .chip i{width:26px;height:4px;border-radius:2px;display:block}
+  .chip b{width:13px;height:13px;border-radius:3px;display:block}
+
+  /* diagram */
+  .canvas{background:var(--panel2);border:1px solid var(--line);border-radius:14px;
+    padding:8px;overflow-x:auto}
+  svg{display:block;width:100%;min-width:1560px;height:auto}
+  .node{cursor:pointer}
+  .node rect.body{fill:var(--panel);stroke-width:1.5}
+  .node.pinned rect.body{stroke-width:3.5;filter:drop-shadow(0 0 7px rgba(255,255,255,.34))}
+  .node .t{font-size:19px;font-weight:700;fill:#f2f7ff}
+  .node .s{font-size:14px;fill:var(--muted)}
+  .node .l{font-size:14px;fill:#b9c8de}
+  .bandlabel{font-size:20px;fill:#9fb0c9;font-weight:600}
+  .bandlabel .ascii{font-size:16px}
+  .bandrect{fill:#ffffff;opacity:.018}
+  .edge{fill:none;stroke-width:2.1;opacity:.72}
+  .elabel{font-size:13px;fill:#dbe6f5}
+  .elabel-bg{fill:#0a0e1a;opacity:.88;stroke:var(--line);stroke-width:1}
+  svg.focus .edge{opacity:.06}
+  svg.focus .node{opacity:.25}
+  svg.focus .elabelg{opacity:.08}
+  svg.focus .edge.hot{opacity:1;stroke-width:3.1}
+  svg.focus .node.hot{opacity:1}
+  svg.focus .elabelg.hot{opacity:1}
+  .hint{color:var(--dim);font-size:14.5px;margin:12px 2px 0}
+
+  /* cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(390px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    border-left-width:5px;border-left-style:solid}
+  .card h3{margin:0;font-size:18px;letter-spacing:.3px}
+  .card .meta{font-size:14px;color:var(--muted);margin:5px 0 9px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .card p{margin:0 0 11px;font-size:15px;line-height:1.7;color:#c3d1e5}
+  .pills{display:flex;gap:7px;flex-wrap:wrap}
+  .pill{font-size:12.5px;padding:3px 10px;border-radius:20px;border:1px solid;line-height:1.5}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:15px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th{background:#182238;color:#a9bcd6;text-align:left;font-weight:600;font-size:14px;
+    letter-spacing:1px;padding:11px 14px;border-bottom:1px solid var(--line)}
+  td{padding:10px 14px;border-bottom:1px solid #1b2437;color:#c8d5e8;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.n{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#e6edf7;white-space:nowrap}
+  td.p{white-space:nowrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
+
+  /* flows */
+  .flows{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:14px}
+  .flow{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .flow h3{margin:0 0 12px;font-size:17px}
+  .flow ol{margin:0;padding-left:20px}
+  .flow li{font-size:15px;line-height:1.9;color:#c3d1e5}
+  .flow code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;
+    background:#0c1424;border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:#9fd5ff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>PROJECT 系統架構</h1>
+    <span class="sub">N 個 runtime service · N 個基礎設施 · N 個 one-shot job</span>
+  </header>
+
+  <div class="legend">
+    <div class="lgroup"><span class="ltitle">通訊協定</span><span id="lg-proto" style="display:contents"></span></div>
+    <div class="lgroup"><span class="ltitle">元件類型</span><span id="lg-kind" style="display:contents"></span></div>
+  </div>
+
+  <div class="canvas"><svg id="diagram" viewBox="0 0 1810 1090"></svg></div>
+  <p class="hint">滑鼠移到任一元件即可過濾出它的所有連線 · 點擊固定, 再點一次同一個 (或點空白處 / Esc) 取消, 點其他元件則直接切換</p>
+
+  <h2>服務職責</h2>
+  <div class="cards" id="cards"></div>
+
+  <h2>通訊矩陣</h2>
+  <table>
+    <thead><tr><th style="width:210px">來源</th><th style="width:210px">目標</th><th style="width:230px">協定 / 埠</th><th>用途</th></tr></thead>
+    <tbody id="matrix"></tbody>
+  </table>
+
+  <h2>關鍵流程</h2>
+  <div class="flows">
+    <!-- 每個關鍵流程一個 .flow 區塊. 用編號步驟, 明確標出失敗路徑與補償機制. -->
+    <div class="flow">
+      <h3>① 流程名稱</h3>
+      <ol>
+        <li>步驟, 需要時用 <code>程式碼</code> 標記端點 / 設定鍵 / 事件名</li>
+      </ol>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================================
+   資料區 — 只改這一段. 下方 render 區不需要修改.
+   ========================================================================= */
+
+/* 通訊協定. key 自訂, c 指到 :root 的 --p1..--p10, n 是圖例顯示名. */
+const PROTO = {
+  web:  {c:'var(--p1)', n:'HTTPS / HTTP (瀏覽器)'},
+  rest: {c:'var(--p2)', n:'HTTP + JSON (服務間)'},
+  sql:  {c:'var(--p7)', n:'PostgreSQL wire'},
+};
+
+/* 元件類型. key 自訂, c 指到 --k1..--k7. 決定節點框線與卡片左側色條. */
+const KIND = {
+  client:{c:'var(--k1)', n:'客戶端 / 外部'},
+  edge:  {c:'var(--k2)', n:'邊緣 / 前端容器'},
+  app:   {c:'var(--k3)', n:'應用服務'},
+  data:  {c:'var(--k6)', n:'資料儲存'},
+};
+
+/* 水平分層. y/h 要涵蓋該層所有節點, 左側會畫直式標籤. */
+const BANDS = [
+  {y:30,  h:130, n:'客戶端 / 外部'},
+  {y:295, h:130, n:'應用服務'},
+  {y:865, h:148, n:'資料儲存'},
+];
+
+/* 節點.
+   id   唯一鍵, 供 E / CARDS 參照
+   k    KIND 的 key
+   x,y,w,h  座標與尺寸 (見 SKILL.md 的版面規則與字數預算)
+   t/s/l    標題 / 副標 / 要點清單 (每點自動加 "· " 前綴)
+   dash 1 = 虛線框, 用於不由本專案部署的外部系統            */
+const N = [
+  {id:'user', k:'client', dash:1, x:60,  y:50,  w:280, h:90,  t:'使用者瀏覽器', s:'SPA · 技術棧',  l:['主要用途']},
+  {id:'api',  k:'app',            x:60,  y:310, w:290, h:100, t:'API 服務',     s:':8080 · 框架',  l:['職責一','職責二']},
+  {id:'db',   k:'data',           x:60,  y:880, w:300, h:100, t:'PostgreSQL',   s:'主資料庫',      l:['Domain 主資料']},
+];
+
+/* 邊.
+   f/t  來源 / 目標節點 id
+   p    PROTO 的 key (決定顏色與箭頭)
+   pts  正交折線的所有轉折點, 起訖點要落在節點框線上
+   lb   選填. 邊上的標籤
+   both 1 = 雙向箭頭                                        */
+const E = [
+  {f:'user', t:'api', p:'web', pts:[[200,140],[200,310]], lb:'/api'},
+  {f:'api',  t:'db',  p:'sql', pts:[[120,410],[120,880]]},
+];
+
+/* 服務職責卡片.
+   d 的最後一句必須是「這裡會咬你」的註記 — 見 SKILL.md 的內容原則. */
+const CARDS = [
+  {k:'app', id:'api', n:'API 服務', m:'框架 · :8080',
+   d:'一句話講清楚它在系統裡的位置與職責. 最後一句放實際踩過的坑或不可違反的約束, 例如某個 header 不可改寫.',
+   p:['rest','sql']},
+];
+
+/* 通訊矩陣. [來源, 目標, PROTO key, 協定/埠, 用途].
+   用途欄寫「為什麼有這條線」, 不是重複協定名. */
+const M = [
+  ['使用者瀏覽器','API 服務','web','HTTPS · :443','SPA 靜態資源與 REST'],
+  ['API 服務','PostgreSQL','sql','PostgreSQL wire','業務讀寫'],
+];
+
+/* ============================================================================
+   render 區 — 通常不需要修改
+   ========================================================================= */
+const NS='http://www.w3.org/2000/svg';
+const el=(n,a={})=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const svg=document.getElementById('diagram');
+
+const defs=el('defs');
+for(const k in PROTO){
+  const m=el('marker',{id:'ar-'+k,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto-start-reverse'});
+  m.appendChild(el('path',{d:'M0,0 L10,5 L0,10 z',fill:PROTO[k].c}));
+  defs.appendChild(m);
+}
+svg.appendChild(defs);
+
+// bands — 直式文字: 每個字元自成一列且維持正立, 連續 ASCII 視為一個橫排單元
+function verticalText(str,cx,cy,lh){
+  const tokens=str.match(/[A-Za-z0-9]+|[^\sA-Za-z0-9]/g)||[];
+  const t=el('text',{class:'bandlabel','text-anchor':'middle'});
+  const top=cy-(tokens.length*lh)/2+lh*0.78;
+  tokens.forEach((tk,i)=>{
+    const s=el('tspan',{x:cx,y:top+i*lh});
+    if(/^[A-Za-z0-9]+$/.test(tk)) s.setAttribute('class','ascii');
+    s.textContent=tk; t.appendChild(s);
+  });
+  return t;
+}
+const gBand=el('g');
+for(const b of BANDS){
+  gBand.appendChild(el('rect',{class:'bandrect',x:60,y:b.y,width:1736,height:b.h,rx:14}));
+  gBand.appendChild(verticalText(b.n,32,b.y+b.h/2,22));
+}
+svg.appendChild(gBand);
+
+const root=el('g',{transform:'translate(70,0)'});
+svg.appendChild(root);
+const gEdge=el('g'), gNode=el('g'), gLab=el('g');
+root.appendChild(gEdge); root.appendChild(gNode); root.appendChild(gLab);
+
+function rounded(pts,r=13){
+  let d=`M ${pts[0][0]} ${pts[0][1]}`;
+  for(let i=1;i<pts.length-1;i++){
+    const p=pts[i],a=pts[i-1],b=pts[i+1];
+    const d1=Math.hypot(p[0]-a[0],p[1]-a[1]), d2=Math.hypot(b[0]-p[0],b[1]-p[1]);
+    const rr=Math.min(r,d1/2,d2/2);
+    const s=[p[0]+(a[0]-p[0])/d1*rr, p[1]+(a[1]-p[1])/d1*rr];
+    const e=[p[0]+(b[0]-p[0])/d2*rr, p[1]+(b[1]-p[1])/d2*rr];
+    d+=` L ${s[0]} ${s[1]} Q ${p[0]} ${p[1]} ${e[0]} ${e[1]}`;
+  }
+  const z=pts[pts.length-1];
+  return d+` L ${z[0]} ${z[1]}`;
+}
+// 邊標籤放在最長的那一段上, 比較不會壓到轉角
+function longest(pts){
+  let bi=0,bl=-1;
+  for(let i=0;i<pts.length-1;i++){
+    const l=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]);
+    if(l>bl){bl=l;bi=i;}
+  }
+  const a=pts[bi],b=pts[bi+1];
+  return {x:(a[0]+b[0])/2,y:(a[1]+b[1])/2};
+}
+
+E.forEach(e=>{
+  const c=PROTO[e.p].c;
+  const path=el('path',{class:'edge','data-f':e.f,'data-t':e.t,d:rounded(e.pts),stroke:c,
+    'marker-end':`url(#ar-${e.p})`});
+  if(e.both) path.setAttribute('marker-start',`url(#ar-${e.p})`);
+  gEdge.appendChild(path);
+
+  if(e.lb){
+    const m=longest(e.pts);
+    const g=el('g',{class:'elabelg','data-f':e.f,'data-t':e.t});
+    // 非 ASCII 以雙倍寬度估算, 讓底板不會比文字窄
+    const w=e.lb.replace(/[^\x00-\xff]/g,'xx').length*6.6+18;
+    g.appendChild(el('rect',{class:'elabel-bg',x:m.x-w/2,y:m.y-11.5,width:w,height:23,rx:11.5}));
+    const t=el('text',{class:'elabel',x:m.x,y:m.y+4.5,'text-anchor':'middle',fill:c});
+    t.textContent=e.lb; g.appendChild(t);
+    gLab.appendChild(g);
+  }
+});
+
+let pinned=null;
+
+for(const n of N){
+  const c=KIND[n.k].c;
+  const g=el('g',{class:'node','data-id':n.id});
+  const r=el('rect',{class:'body',x:n.x,y:n.y,width:n.w,height:n.h,rx:12,stroke:c});
+  if(n.dash) r.setAttribute('stroke-dasharray','6 4');
+  g.appendChild(r);
+  g.appendChild(el('rect',{x:n.x,y:n.y+10,width:4,height:n.h-20,rx:2,fill:c}));
+  const px=n.x+18;
+  let y=n.y+ (n.h<=44 ? 24 : 30);
+  const t=el('text',{class:'t',x:px,y:y}); t.textContent=n.t;
+  if(n.h<=44) t.setAttribute('style','font-size:16px');
+  g.appendChild(t);
+  if(n.s){ y+=20; const s=el('text',{class:'s',x:px,y:y}); s.textContent=n.s; g.appendChild(s); }
+  (n.l||[]).forEach(line=>{ y+=20; const l=el('text',{class:'l',x:px,y:y}); l.textContent='· '+line; g.appendChild(l); });
+  gNode.appendChild(g);
+
+  // hover 為暫時預覽; 點擊固定, 再點同一個 (或空白 / Esc) 取消, 點別的則換過去
+  g.addEventListener('mouseenter',()=>{ if(!pinned) focus(n.id); });
+  g.addEventListener('mouseleave',()=>{ if(!pinned) clearFocus(); });
+  g.addEventListener('click',ev=>{
+    ev.stopPropagation();
+    pinned = (pinned===n.id) ? null : n.id;
+    pinned ? focus(pinned,true) : clearFocus();
+  });
+}
+
+function focus(id,isPinned){
+  svg.classList.add('focus');
+  const rel=new Set([id]);
+  E.forEach(e=>{ if(e.f===id) rel.add(e.t); if(e.t===id) rel.add(e.f); });
+  gEdge.querySelectorAll('.edge').forEach(p=>{
+    p.classList.toggle('hot',p.dataset.f===id||p.dataset.t===id);
+  });
+  gLab.querySelectorAll('.elabelg').forEach(p=>{
+    p.classList.toggle('hot',p.dataset.f===id||p.dataset.t===id);
+  });
+  gNode.querySelectorAll('.node').forEach(p=>{
+    p.classList.toggle('hot',rel.has(p.dataset.id));
+    p.classList.toggle('pinned',!!isPinned && p.dataset.id===id);
+  });
+}
+
+function clearFocus(){
+  svg.classList.remove('focus');
+  gNode.querySelectorAll('.node.pinned').forEach(p=>p.classList.remove('pinned'));
+}
+
+svg.addEventListener('click',()=>{ if(pinned){ pinned=null; clearFocus(); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&pinned){ pinned=null; clearFocus(); } });
+
+/* legend / cards / matrix 全部由上方資料自動生成 */
+document.getElementById('lg-proto').innerHTML=Object.values(PROTO)
+  .map(v=>`<span class="chip"><i style="background:${v.c}"></i>${v.n}</span>`).join('');
+document.getElementById('lg-kind').innerHTML=Object.values(KIND)
+  .map(v=>`<span class="chip"><b style="background:${v.c}"></b>${v.n}</span>`).join('');
+
+document.getElementById('cards').innerHTML=CARDS.map(c=>`
+  <div class="card" style="border-left-color:${KIND[c.k].c}">
+    <h3>${c.n}</h3>
+    <div class="meta">${c.m}</div>
+    <p>${c.d}</p>
+    <div class="pills">${c.p.map(p=>`<span class="pill" style="color:${PROTO[p].c};border-color:${PROTO[p].c}55;background:${PROTO[p].c}12">${PROTO[p].n}</span>`).join('')}</div>
+  </div>`).join('');
+
+document.getElementById('matrix').innerHTML=M.map(r=>`
+  <tr><td class="n">${r[0]}</td><td class="n">${r[1]}</td>
+  <td class="p"><span class="dot" style="background:${PROTO[r[2]].c}"></span>${r[3]}</td>
+  <td>${r[4]}</td></tr>`).join('');
+</script>
+</body>
+</html>

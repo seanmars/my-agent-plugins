@@ -1,6 +1,6 @@
 {
   "name": "my-agent-plugins",
-  "description": "Directory of popular AI extensions including development tools, productivity plugins, and MCP integrations",
+  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, architecture diagrams, and coding guideline skills",
   "owner": {
     "name": "mars"
   },
@@ -15,9 +15,36 @@
       }
     },
     {
+      "name": "architecture-diagram",
+      "source": "./plugins/architecture-diagram",
+      "description": "Generate a single-file interactive HTML system architecture diagram for a repository: SVG topology, service cards, communication matrix, and key flows.",
+      "category": "architecture",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
+      "name": "code-review-helper",
+      "source": "./plugins/code-review-helper",
+      "description": "Generate an interactive, self-contained HTML code-review report that walks a reviewer through a set of changes as a pipeline.",
+      "category": "code-review",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
+      "name": "code-review-to-html",
+      "source": "./plugins/code-review-to-html",
+      "description": "Convert code review markdown reports into an interactive, self-contained HTML viewer.",
+      "category": "code-review",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
       "name": "notifier",
       "source": "./plugins/notifier",
-      "description": "Windows Toast notifications for Claude Code Stop / Notification events",
+      "description": "Cross-platform native notifications (Windows Toast / macOS) for Claude Code hook events",
       "category": "notifications",
       "author": {
         "name": "seanmars"
