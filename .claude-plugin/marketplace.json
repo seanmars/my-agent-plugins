@@ -42,6 +42,15 @@
       }
     },
     {
+      "name": "pet",
+      "source": "./plugins/pet",
+      "description": "A small ASCII pet that lives in the band above the prompt, fed by /pet",
+      "category": "fun",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
       "name": "notifier",
       "source": "./plugins/notifier",
       "description": "Cross-platform native notifications (Windows Toast / macOS) for Claude Code hook events",

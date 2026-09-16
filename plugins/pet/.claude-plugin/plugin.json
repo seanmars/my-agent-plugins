@@ -1,0 +1,23 @@
+{
+  "name": "pet",
+  "version": "0.1.0",
+  "description": "A small ASCII pet that lives in the band above the prompt, fed by /pet",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["fun", "ui"],
+  "userConfig": {
+    "petName": {
+      "type": "string",
+      "title": "Pet name",
+      "description": "The pet's name, shown beside its mood bars",
+      "default": "Mochi"
+    },
+    "showOnStart": {
+      "type": "boolean",
+      "title": "Show on start",
+      "description": "Show the pet as soon as a session starts",
+      "default": true
+    }
+  }
+}
