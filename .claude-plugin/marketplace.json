@@ -1,6 +1,6 @@
 {
   "name": "my-agent-plugins",
-  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, architecture diagrams, and coding guideline skills",
+  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, architecture diagrams, grouped git commits, and coding guideline skills",
   "owner": {
     "name": "mars"
   },
@@ -42,10 +42,10 @@
       }
     },
     {
-      "name": "pet",
-      "source": "./plugins/pet",
-      "description": "A small ASCII pet that lives in the band above the prompt, fed by /pet",
-      "category": "fun",
+      "name": "group-commit",
+      "source": "./plugins/group-commit",
+      "description": "Split uncommitted changes into atomic commits by issue, down to hunks and lines within a shared file, ordered by dependency so every intermediate commit builds.",
+      "category": "git",
       "author": {
         "name": "seanmars"
       }
@@ -55,6 +55,15 @@
       "source": "./plugins/notifier",
       "description": "Cross-platform native notifications (Windows Toast / macOS) for Claude Code hook events",
       "category": "notifications",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
+      "name": "pet",
+      "source": "./plugins/pet",
+      "description": "A small ASCII pet that lives in the band above the prompt, fed by /pet",
+      "category": "fun",
       "author": {
         "name": "seanmars"
       }

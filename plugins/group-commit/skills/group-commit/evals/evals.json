@@ -1,0 +1,29 @@
+{
+  "skill_name": "group-commit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我剛完成了一個功能，改了很多東西：新增了 src/auth/login.ts 和 src/auth/refresh.ts（JWT 相關），修改了 src/routes/api.ts（新增 auth route），還改了 README.md（新增使用說明），以及 package.json 和 package-lock.json（新增了 jsonwebtoken 套件）。幫我 commit 這些變更。",
+      "expected_output": "分析所有變更並提出 3 個 commit 的計畫：1) chore(deps): 新增 jsonwebtoken 套件 (必須在 feat(auth) 之前, 因為 auth 程式碼依賴它) 2) feat(auth): 新增 JWT login/refresh 相關檔案 3) docs: 更新 README。等待使用者確認後依序執行 git add 特定檔案 + git commit。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我有一堆未 commit 的變更，請幫我用 group-commit 整理。git status 顯示：M src/components/Button.tsx, M src/components/Modal.tsx, M src/styles/theme.css, A src/utils/validators.ts, M src/api/users.ts, A src/api/users.test.ts, M CHANGELOG.md",
+      "expected_output": "識別至少 3 個群組：1) UI 元件相關（Button + Modal + theme.css）→ refactor(ui) 或 feat(ui) 2) API 及驗證邏輯（validators + users.ts + users.test.ts）→ feat(api) 3) 文件（CHANGELOG）→ docs。展示計畫讓使用者確認。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "所有改動都是同一個 feature 的，不需要拆分，幫我 commit 就好。我改了 src/payment/checkout.ts, src/payment/cart.ts, src/payment/checkout.test.ts 還有 src/types/payment.ts，全部都是購物車結帳功能。",
+      "expected_output": "正確識別所有檔案屬於同一個功能群組，建議單一 commit（如 feat(payment): implement checkout cart functionality），不強行拆分，等待使用者確認後執行。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "我改了 a.py, b.py, c.py 並新增 d.py, 裡面混了三個 issue: issue1 在 a.py 新增 retry() 並在 b.py 使用; issue2 修改 a.py 的 middle() 改成呼叫 retry(); issue3 在 a.py 新增 status() 並由新檔 d.py 使用, c.py 也是 issue3. 幫我依 issue 拆 commit.",
+      "expected_output": "a.py 以 hunk 為單位拆到三個 commit (用 hunks.mjs list/stage, 不 stage 整個檔案). 順序為 issue1 -> issue2 -> issue3, 並註明 issue2 必須在 issue1 之後因為用到 retry(). 計畫中 a.py 標示為 partial 並說明各自包含的區塊. 執行時每個 commit 前重新 list 取得新 ID, commit 前檢查 git diff --cached 不含其他 issue 的變更. 完成後 git status 無剩餘變更, 並驗證每個中間 commit 都能正常 import/執行. 全程不修改 working tree.",
+      "files": []
+    }
+  ]
+}

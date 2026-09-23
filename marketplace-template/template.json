@@ -1,6 +1,6 @@
 {
   "name": "my-agent-plugins",
-  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, architecture diagrams, and coding guideline skills",
+  "description": "Personal collection of Claude Code plugins: native desktop notifications, HTML code-review report tools, architecture diagrams, grouped git commits, and coding guideline skills",
   "owner": {
     "name": "mars"
   },
