@@ -2,6 +2,8 @@
 
 在輸入框正上方養一隻 ASCII 小寵物,用 `/pet` 呼叫。純裝飾,沒有任何需要照顧的狀態。
 
+> 只支援 Claude Code. 使用 Claude Code 專屬的 function hooks, 安裝到其他 agent 不會運作.
+
 ```
                                                         /\_/\
                                                        ( o.o )

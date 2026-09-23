@@ -2,6 +2,8 @@
 
 Claude Code plugin: 跨平台原生通知 (Windows Toast / macOS Notification Center). Claude 完成回應或需要使用者輸入時自動跳通知, 讓你不用一直盯著終端機.
 
+> 只支援 Claude Code. 依賴 Claude Code 的 hook 事件, 安裝到其他 agent 不會運作.
+
 ## 系統需求
 
 通用:
