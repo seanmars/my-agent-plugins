@@ -1,12 +1,12 @@
 /** One image a chip stands for. */
 export type ImageRef = {
-  /** `<message uuid>:<index>` for a sent image, `draft:<n>` for a pasted one. */
+  /** `<message uuid>:<index>` for a sent image, `draft:<n>` for paste `n` in the draft. */
   id: string
   /** What the chip reads: `Image #1`. */
   label: string
 }
 
-/** The picture itself, as the transcript or the clipboard handed it over. */
+/** A sent image's bytes, as the transcript row carried them. */
 export type ImageData = {
   mediaType: string
   base64: string
@@ -25,8 +25,8 @@ declare module 'claude-code' {
       messageImages: StateFamily<ImageRef[]>
       /** The `[Image #N]` placeholders in the prompt draft, in order. */
       draftImages: ImageRef[]
-      /** Each image's bytes by its id; `null` once a draft image is dropped. */
-      imageData: StateFamily<ImageData | null>
+      /** Each sent image's bytes by its id. */
+      imageData: StateFamily<ImageData>
       /** One card at a time, under the chip that opened it. */
       hint: OpenHint | null
       /** The image the large pane shows. */

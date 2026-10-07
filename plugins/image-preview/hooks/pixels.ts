@@ -6,13 +6,13 @@
  * cell holds one square pixel above another and the picture keeps its shape.
  */
 
-/** What scripts/image.ps1 decoded: BGRA pixels, 4 bytes each, row-major. */
+/** What scripts/image.py decoded: RGBA pixels, 4 bytes each, row-major. */
 export type Decoded = {
   width: number
   height: number
   originalWidth: number
   originalHeight: number
-  bgra: Uint8Array
+  rgba: Uint8Array
 }
 
 export type CellSize = { columns: number; rows: number }
@@ -26,12 +26,12 @@ export function parseDecoded(stdout: string): Decoded {
   const newline = stdout.indexOf('\n')
   const sizes = stdout.slice(0, newline).trim().split(' ').map(Number)
   const [originalWidth = 0, originalHeight = 0, width = 0, height = 0] = sizes
-  const bgra = Uint8Array.fromBase64(stdout.slice(newline + 1).trim())
+  const rgba = Uint8Array.fromBase64(stdout.slice(newline + 1).trim())
 
-  if (newline < 0 || width < 1 || height < 1 || bgra.length !== width * height * 4) {
+  if (newline < 0 || width < 1 || height < 1 || rgba.length !== width * height * 4) {
     throw new Error('the decoder answered something that is not an image')
   }
-  return { width, height, originalWidth, originalHeight, bgra }
+  return { width, height, originalWidth, originalHeight, rgba }
 }
 
 /** The largest box of cells inside the room that keeps the picture's shape. */
@@ -80,10 +80,10 @@ function averageColor(
   for (let sy = top; sy < bottom; sy++) {
     for (let sx = left; sx < right; sx++) {
       const at = (sy * image.width + sx) * 4
-      const a = image.bgra[at + 3] ?? 0
-      blue += (image.bgra[at] ?? 0) * a
-      green += (image.bgra[at + 1] ?? 0) * a
-      red += (image.bgra[at + 2] ?? 0) * a
+      const a = image.rgba[at + 3] ?? 0
+      red += (image.rgba[at] ?? 0) * a
+      green += (image.rgba[at + 1] ?? 0) * a
+      blue += (image.rgba[at + 2] ?? 0) * a
       alpha += a
     }
   }

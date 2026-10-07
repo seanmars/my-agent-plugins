@@ -4,16 +4,16 @@ import { fitCells, parseDecoded, rasterCells } from '../hooks/pixels'
 import type { Decoded } from '../hooks/pixels'
 import { imageNumbers, placeholders } from '../hooks/placeholders'
 
-/** A picture whose top half is red and bottom half blue, in BGRA. */
+/** A picture whose top half is red and bottom half blue, in RGBA. */
 function redOverBlue(width: number, height: number): Decoded {
-  const bgra = new Uint8Array(width * height * 4)
+  const rgba = new Uint8Array(width * height * 4)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const at = (y * width + x) * 4
-      bgra.set(y < height / 2 ? [0, 0, 255, 255] : [255, 0, 0, 255], at)
+      rgba.set(y < height / 2 ? [255, 0, 0, 255] : [0, 0, 255, 255], at)
     }
   }
-  return { width, height, originalWidth: width, originalHeight: height, bgra }
+  return { width, height, originalWidth: width, originalHeight: height, rgba }
 }
 
 /** Each cell's `[codePoint, foreground, background]`. */
@@ -52,7 +52,7 @@ test('a cell over the edge between colors shows one above the other', () => {
 })
 
 test('a transparent pixel shows the terminal default color', () => {
-  const clear: Decoded = { width: 1, height: 2, originalWidth: 1, originalHeight: 2, bgra: new Uint8Array(8) }
+  const clear: Decoded = { width: 1, height: 2, originalWidth: 1, originalHeight: 2, rgba: new Uint8Array(8) }
   const [cell] = cellsOf(rasterCells(clear, { columns: 1, rows: 1 }))
 
   expect(cell).toEqual([0x2580, 0x01000000, 0x01000000])
@@ -63,7 +63,7 @@ test('the decoder output is read back as pixels', () => {
   const decoded = parseDecoded(`20 10 2 1\n${pixels.toBase64()}`)
 
   expect(decoded).toMatchObject({ width: 2, height: 1, originalWidth: 20, originalHeight: 10 })
-  expect([...decoded.bgra]).toEqual([...pixels])
+  expect([...decoded.rgba]).toEqual([...pixels])
 })
 
 test('a decoder answer of the wrong size is refused', () => {
