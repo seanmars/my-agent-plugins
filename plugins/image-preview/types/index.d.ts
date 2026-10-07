@@ -12,6 +12,12 @@ export type ImageData = {
   base64: string
 }
 
+/**
+ * Where the decoder reads an image: a file Claude Code cached for a paste,
+ * or bytes the transcript row carried, kept only while no file is known.
+ */
+export type DecodeSource = { path: string } | ImageData
+
 /** The chip whose card is open: the drawing that holds it and its image. */
 export type OpenHint = {
   site: string
@@ -25,8 +31,8 @@ declare module 'claude-code' {
       messageImages: StateFamily<ImageRef[]>
       /** The `[Image #N]` placeholders in the prompt draft, in order. */
       draftImages: ImageRef[]
-      /** Each sent image's bytes by its id. */
-      imageData: StateFamily<ImageData>
+      /** Where each sent image is read from, by its id. */
+      imageSource: StateFamily<DecodeSource>
       /** One card at a time, under the chip that opened it. */
       hint: OpenHint | null
       /** The image the large pane shows. */
