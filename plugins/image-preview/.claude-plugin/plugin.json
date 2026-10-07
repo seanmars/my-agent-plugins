@@ -1,6 +1,6 @@
 {
   "name": "image-preview",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pasted images become chips you can click to preview, in the transcript and above the prompt",
   "author": {
     "name": "seanmars"
