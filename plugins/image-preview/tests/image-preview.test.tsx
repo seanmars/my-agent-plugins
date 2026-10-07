@@ -58,15 +58,6 @@ const BAND_PROPS: RenderPropsOf['AbovePrompt'] = {
   view: {},
 }
 
-const PANE_PROPS: RenderPropsOf['Pane'] = {
-  title: 'Image #1',
-  isFocused: false,
-  bodyColumns: 60,
-  placement: 'dock',
-  scroll: { offset: 0, bodyRows: 30 },
-  view: {},
-}
-
 const userMessage = (text: string): RenderPropsOf['UserMessage'] => ({
   text,
   origin: { kind: 'composer' },
@@ -86,6 +77,8 @@ type Host = {
   decoder?: Answer
   /** What each look for paste numbers answers in turn; the last repeats. */
   pasteIds?: Answer[]
+  /** What the system viewer's helper answers. */
+  viewer?: Answer
   /** The environment the plugin reads; Windows' when not given. */
   env?: Record<string, string>
 }
@@ -100,9 +93,7 @@ const setup = (on: On, host: Host = {}) => {
   const draft = { text: '', reads: 0 }
   const session = { id: 'session-1' }
   const runs: Args<'process.run'>[] = []
-  const opened: Args<'ui.open'>[] = []
-  /** Panes the person closed: `ui.panes` no longer lists them. */
-  const closed = new Set<string>()
+  const toasts: string[] = []
   const pasteIds = [...(host.pasteIds ?? [{ exitCode: 3, stdout: '', stderr: '' }])]
 
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -117,26 +108,22 @@ const setup = (on: On, host: Host = {}) => {
   on('fs.exists', ($, e) => ({ value: PRESENT.has(fsKey(e.path)) }))
   on('process.run', ($, e) => {
     runs.push(e)
-    const answer =
-      e.argv.some((arg) => arg.endsWith('/paste_ids.py'))
-        ? (pasteIds.length > 1 ? pasteIds.shift() : pasteIds[0])
+    const answer = e.argv.some((arg) => arg.endsWith('/paste_ids.py'))
+      ? (pasteIds.length > 1 ? pasteIds.shift() : pasteIds[0])
+      : e.argv.some((arg) => arg.endsWith('/open_image.py'))
+        ? (host.viewer ?? { exitCode: 0, stdout: '', stderr: '' })
         : (host.decoder ?? { exitCode: 0, stdout: DECODED, stderr: '' })
     return { value: { exitCode: 1, stdout: '', stderr: '', ...answer, isStdoutTruncated: false, isStderrTruncated: false } }
   })
-  on('ui.open', ($, e) => {
-    opened.push(e)
-    return { value: { isPlaced: true } }
-  })
-  on('ui.panes', () => {
-    const titles = new Map(opened.filter((open) => !closed.has(open.id)).map((open) => [open.id, open.title ?? open.id]))
-    const panes = [...titles].map(([id, title]) => ({ id, title, isShown: true, isFocused: false, isPlaced: true }))
-    return { value: panes }
+  on('ui.toast', ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
   })
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>{'engine'}</Text>
   })
-  return { clock, draft, session, runs, opened, closed }
+  return { clock, draft, session, runs, toasts }
 }
 
 /** The runs of one helper: the decoder's by its `decode` mode, the paste numbers' by `paste_ids.py`. */
@@ -167,8 +154,6 @@ const mountMessage = ($: Engine, requestId = UUID) =>
 const mountBand = ($: Engine, props: Partial<RenderPropsOf['AbovePrompt']> = {}) =>
   $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: { ...BAND_PROPS, ...props } })
 
-const mountPane = ($: Engine) =>
-  $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', props: PANE_PROPS, requestId: 'image-preview' })
 
 // ── Sent prompts ────────────────────────────────────────────────────────────
 
@@ -196,7 +181,7 @@ test('a click on the chip opens a card with the picture, and a second closes it'
 
   await ui.press({ key: `chip:${UUID}:0` })
   expect(await ui.find({ type: 'Raster' })).toBeDefined()
-  expect(await ui.find({ key: `expand:${UUID}:0` })).toBeDefined()
+  expect(await ui.find({ key: `outside:${UUID}:0` })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Image #1 · 8×4/ })).toBeDefined()
   expect(runsOf(runs, 'decode')[0]?.init?.stdin).toBe(PNG)
 
@@ -226,6 +211,42 @@ test('the card keeps the picture inside its small room', async ($, on) => {
   expect(raster?.props).toMatchObject({ columns: 64, rows: 16 })
 })
 
+test('↗ opens a sent picture in the system viewer from the bytes it carried', async ($, on) => {
+  const { runs } = setup(on)
+  await sendImage($)
+  const ui = await mountMessage($)
+
+  await ui.press({ key: `chip:${UUID}:0` })
+  await ui.press({ key: `outside:${UUID}:0` })
+  const [open] = runsOf(runs, 'open_image.py')
+  expect(open?.argv).toEqual(expect.arrayContaining(['--media-type', 'image/png']))
+  expect(open?.init?.stdin).toBe(PNG)
+})
+
+test('↗ opens a draft picture from the file Claude Code cached', async ($, on) => {
+  const { clock, draft, runs } = setup(on)
+  await $.session.start(SESSION)
+  draft.text = '[Image #2]'
+  await clock.advance(200)
+  const band = await mountBand($)
+
+  await band.press({ key: 'chip:draft:2' })
+  await band.press({ key: 'outside:draft:2' })
+  const [open] = runsOf(runs, 'open_image.py')
+  expect(open?.argv).toEqual(expect.arrayContaining(['--path', `${PASTES}/2.png`]))
+  expect(open?.init?.stdin).toBeUndefined()
+})
+
+test('a viewer that cannot open the picture says so in a toast', async ($, on) => {
+  const { toasts } = setup(on, { viewer: { exitCode: 1, stdout: '', stderr: 'OSError: no app\r\nmore' } })
+  await sendImage($)
+  const ui = await mountMessage($)
+
+  await ui.press({ key: `chip:${UUID}:0` })
+  await ui.press({ key: `outside:${UUID}:0` })
+  expect(toasts).toEqual(['Cannot open Image #1: OSError: no app'])
+})
+
 test('the card can be closed from its own corner', async ($, on) => {
   setup(on)
   await sendImage($)
@@ -234,19 +255,6 @@ test('the card can be closed from its own corner', async ($, on) => {
   await ui.press({ key: `chip:${UUID}:0` })
   await ui.press({ key: `close:${UUID}:0` })
   expect(await ui.find({ type: 'Raster' })).toBeUndefined()
-})
-
-test('⤢ opens the large pane, which draws the picture to its width', async ($, on) => {
-  const { opened } = setup(on)
-  await sendImage($)
-  const ui = await mountMessage($)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `expand:${UUID}:0` })
-  expect(opened).toEqual([expect.objectContaining({ id: 'image-preview', title: 'Image #1' })])
-
-  const pane = await mountPane($)
-  expect((await pane.find({ type: 'Raster' }))?.props).toMatchObject({ columns: 60, rows: 15 })
 })
 
 test('only the last few decoded pictures stay held', async ($, on) => {
@@ -311,32 +319,6 @@ test('a label waits for its transcript line to be written', async ($, on) => {
   await clock.advance(500)
   expect((await ui.find({ key: `chip:${UUID}:0` }))?.props.label).toBe('Image #3')
   expect(runsOf(runs, 'paste_ids.py')).toHaveLength(2)
-})
-
-test('a new label reaches the open pane, its caption and its title', async ($, on) => {
-  const { clock, opened } = setup(on, { pasteIds: [{ exitCode: 0, stdout: '3', stderr: '' }] })
-  await sendImage($, 'typed [Image #1] and pasted [Image #3]')
-  const ui = await mountMessage($)
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `expand:${UUID}:0` })
-  expect(opened.at(-1)?.title).toBe('Image 1')
-
-  await clock.advance(500)
-  expect(opened.at(-1)?.title).toBe('Image #3')
-  const pane = await mountPane($)
-  expect(await pane.find({ type: 'Text', text: /^Image #3 · 8×4/ })).toBeDefined()
-})
-
-test('a new label leaves a closed pane closed', async ($, on) => {
-  const { clock, opened, closed } = setup(on, { pasteIds: [{ exitCode: 0, stdout: '3', stderr: '' }] })
-  await sendImage($, 'typed [Image #1] and pasted [Image #3]')
-  const ui = await mountMessage($)
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `expand:${UUID}:0` })
-  closed.add('image-preview')
-
-  await clock.advance(500)
-  expect(opened).toHaveLength(1)
 })
 
 test('once its paste is known a sent image is read from the cached file, not kept bytes', async ($, on) => {
@@ -507,21 +489,6 @@ test('after a session switch a draft tag shows the paste of the new session', as
   const resumed = await mountBand($)
   await resumed.press({ key: 'chip:draft:2' })
   expect(decodedPaths(runs)).toEqual([`${PASTES}/2.png`, `${NEXT_PASTES}/2.png`])
-})
-
-test('two drawings of one picture at once decode it once', async ($, on) => {
-  const { clock, draft, runs } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
-  await band.press({ key: 'chip:draft:2' })
-  await band.press({ key: 'expand:draft:2' })
-
-  // The decoded pixels are dropped; the card and the pane then ask for them together.
-  await $.classic.SessionStart({ source: 'compact' })
-  await Promise.all([mountBand($), mountPane($)])
-  expect(runsOf(runs, 'decode')).toHaveLength(2)
 })
 
 test('the chips leave once the draft holds no tag', async ($, on) => {

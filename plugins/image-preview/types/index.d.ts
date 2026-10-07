@@ -35,8 +35,6 @@ declare module 'claude-code' {
       imageSource: StateFamily<DecodeSource>
       /** One card at a time, under the chip that opened it. */
       hint: OpenHint | null
-      /** The image the large pane shows. */
-      expanded: ImageRef | null
     }
   }
 }

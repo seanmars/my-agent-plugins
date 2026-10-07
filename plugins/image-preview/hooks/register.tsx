@@ -4,8 +4,7 @@
  * Chips sit under each prompt in the transcript that carried images, and in
  * the band above the prompt for the `[Image #N]` placeholders in the draft.
  * A click opens a small card under the chip, scaled to keep the picture's
- * shape; the card's ⤢ shows the image large in a pane, which the fullscreen
- * terminal docks on the right.
+ * shape; the card's ↗ opens the whole picture in the system's own viewer.
  *
  * Pixels come from scripts/image.py (Pillow, run by uv), which decodes and
  * scales an image. A draft's image is the file Claude Code cached for that
@@ -25,7 +24,6 @@ import { fitCells, parseDecoded, rasterCells } from './pixels'
 import type { CellSize, Decoded } from './pixels'
 import { imageNumbers, placeholders } from './placeholders'
 
-const PANE = 'image-preview'
 const ACCENT = 'suggestion'
 /**
  * The card's picture at most; it shrinks to keep the shape, and to fit. Its
@@ -36,11 +34,9 @@ const HINT_ROOM: CellSize = { columns: 64, rows: 16 }
 const CARD_CHROME = 6
 /** The card's header needs this much even beside a narrow picture. */
 const CARD_MIN_COLUMNS = 24
-/** Rows the large pane asks for while it sits inline above the prompt. */
-const PANE_INLINE_ROWS = 24
 /** The decoder scales a picture down to fit this many pixels a side. */
 const DECODE_MAX = 400
-/** Decoded pictures held at most: a card and the pane draw two at a time. */
+/** Decoded pictures held at most. */
 const DECODED_KEPT = 8
 /** Pasting an image raises no `prompt.edit`, so the draft is read on a timer. */
 const POLL_MS = 200
@@ -61,7 +57,6 @@ const MESSAGE_IMAGES = { plugin: 'image-preview', key: 'messageImages' } as cons
 const IMAGE_SOURCE = { plugin: 'image-preview', key: 'imageSource' } as const
 const draftImages = atom({ plugin: 'image-preview', key: 'draftImages' } as const, [])
 const hint = atom({ plugin: 'image-preview', key: 'hint' } as const, null)
-const expanded = atom({ plugin: 'image-preview', key: 'expanded' } as const, null)
 
 /**
  * Decoded pixels by image id, the last drawn last; past DECODED_KEPT the
@@ -335,7 +330,6 @@ async function relabel($: EngineInterface, uuid: string, tries: number): Promise
     const labeled = images.map((image, index) => ({ ...image, label: `Image #${ids[index]}` }))
     await $.state.set({ ...MESSAGE_IMAGES, id: uuid }, labeled)
     await keepPastes($, images, ids)
-    await relabelPane($, labeled)
   } catch (error) {
     $.ui.log(`image-preview: reading paste numbers failed: ${String(error)}`, { to: 'debug' })
   }
@@ -351,17 +345,6 @@ async function keepPastes($: EngineInterface, images: ImageRef[], ids: number[])
     const path = files.get(ids[index] ?? -1)
     if (path !== undefined) await $.state.set({ ...IMAGE_SOURCE, id: image.id }, { path })
   }
-}
-
-/** The pane keeps a copy of its image: it takes the new label, and the open pane its title. */
-async function relabelPane($: EngineInterface, labeled: ImageRef[]): Promise<void> {
-  const shown = await read($, expanded)
-  const fresh = labeled.find((image) => image.id === shown?.id)
-  if (!fresh || fresh.label === shown?.label) return
-
-  await update($, expanded, (image) => (image?.id === fresh.id ? fresh : image))
-  const panes = await $.ui.panes()
-  if (panes.some((pane) => pane.id === PANE)) await $.ui.open({ id: PANE, title: fresh.label, rows: PANE_INLINE_ROWS })
 }
 
 // ── The draft ───────────────────────────────────────────────────────────────
@@ -404,9 +387,19 @@ async function closeHint($: EngineInterface): Promise<void> {
   await update($, hint, () => null)
 }
 
-async function expand($: EngineInterface, image: ImageRef): Promise<void> {
-  await update($, expanded, () => image)
-  await $.ui.open({ id: PANE, title: image.label, rows: PANE_INLINE_ROWS })
+/** Opens the whole picture in the system's own viewer, which shows what cells cannot. */
+async function openOutside($: EngineInterface, image: ImageRef): Promise<void> {
+  try {
+    const source = await sourceOf($, image.id)
+    const argv = [...UV, helperPath($, 'open_image.py')]
+    const result =
+      'path' in source
+        ? await $.process.run([...argv, '--path', source.path], { timeoutMs: 30_000 })
+        : await $.process.run([...argv, '--media-type', source.mediaType], { stdin: source.base64, timeoutMs: 30_000 })
+    if (result.exitCode !== 0) $.ui.toast(`Cannot open ${image.label}: ${firstLine(result.stderr)}`)
+  } catch (error) {
+    $.ui.toast(`Cannot open ${image.label}: ${error instanceof Error ? error.message : String(error)}`)
+  }
 }
 
 // ── Drawing ─────────────────────────────────────────────────────────────────
@@ -422,7 +415,7 @@ async function hintCard($: EngineInterface, site: Site, image: ImageRef, room: C
       <Box flexDirection="row" justifyContent="space-between">
         <Text bold wrap="truncate-end">{caption(image, preview)}</Text>
         <Box flexDirection="row" gap={1}>
-          <Button key={`expand:${image.id}`} label="⤢" plain onPress={() => expand($, image)} />
+          <Button key={`outside:${image.id}`} label="↗" plain onPress={() => openOutside($, image)} />
           <Button key={`close:${image.id}`} label="✕" plain onPress={() => closeHint($)} />
         </Box>
       </Box>
@@ -523,25 +516,6 @@ export const register: Register = (on) => {
       <Box flexDirection="column">
         {below}
         {strip}
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: PANE, surface: 'terminal' }, async ($, e) => {
-    const { Box, Text, Raster } = $.ui.resolve(e)
-    const image = await read($, expanded)
-    if (!image) return <Text dimColor>Click an image chip, then ⤢ on its card.</Text>
-
-    const preview = await loadPreview($, image.id)
-    if (!('decoded' in preview)) return <Text dimColor wrap="wrap">{preview.problem}</Text>
-
-    // One row goes to the caption.
-    const room = { columns: Math.max(1, e.props.bodyColumns), rows: Math.max(1, e.props.scroll.bodyRows - 1) }
-    const size = fitCells(preview.decoded.width, preview.decoded.height, room)
-    return (
-      <Box flexDirection="column" alignItems="center">
-        <Text dimColor wrap="truncate-end">{caption(image, preview)}</Text>
-        <Raster key="large" columns={size.columns} rows={size.rows} cells={rasterCells(preview.decoded, size)} />
       </Box>
     )
   })
