@@ -20,6 +20,8 @@ export type CellSize = { columns: number; rows: number }
 const UPPER_HALF = 0x2580
 /** Raster's "terminal default" color: what a transparent pixel shows. */
 const DEFAULT_COLOR = 0x01000000
+/** How far sharpening moves a color away from its neighbours' mean, as a share of the difference. */
+const SHARPEN = 0.5
 
 /** Reads the decode helper's output: a size line, then base64 pixels. */
 export function parseDecoded(stdout: string): Decoded {
@@ -43,20 +45,74 @@ export function fitCells(width: number, height: number, room: CellSize): CellSiz
   }
 }
 
-/** Raster's `cells` for the picture scaled into `size`. */
+/**
+ * Raster's `cells` for the picture scaled into `size`. A picture scaled down
+ * has its edges sharpened again.
+ */
 export function rasterCells(image: Decoded, size: CellSize): string {
   const { columns, rows } = size
-  const words = new Uint32Array(columns * rows * 3)
+  const scaled = scalePixels(image, columns, rows * 2)
+  const pixels = image.width > columns ? sharpen(scaled, columns, rows * 2) : scaled
 
+  const words = new Uint32Array(columns * rows * 3)
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
       const at = (row * columns + column) * 3
       words[at] = UPPER_HALF
-      words[at + 1] = averageColor(image, column, row * 2, columns, rows * 2)
-      words[at + 2] = averageColor(image, column, row * 2 + 1, columns, rows * 2)
+      words[at + 1] = pixels[row * 2 * columns + column] ?? DEFAULT_COLOR
+      words[at + 2] = pixels[(row * 2 + 1) * columns + column] ?? DEFAULT_COLOR
     }
   }
   return new Uint8Array(words.buffer).toBase64()
+}
+
+/** The picture as `width` by `height` colors, row-major. */
+function scalePixels(image: Decoded, width: number, height: number): Uint32Array {
+  const pixels = new Uint32Array(width * height)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) pixels[y * width + x] = averageColor(image, x, y, width, height)
+  }
+  return pixels
+}
+
+/**
+ * An unsharp mask: each color moves away from the mean of its 3 x 3
+ * neighbours by SHARPEN of the difference. Transparent pixels stay, and take
+ * no part in the mean.
+ */
+function sharpen(pixels: Uint32Array, width: number, height: number): Uint32Array {
+  const sharpened = new Uint32Array(pixels.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const color = pixels[y * width + x] ?? DEFAULT_COLOR
+      if (color === DEFAULT_COLOR) {
+        sharpened[y * width + x] = color
+        continue
+      }
+      const mean = [0, 0, 0]
+      let count = 0
+      for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny++) {
+        for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx++) {
+          const near = pixels[ny * width + nx] ?? DEFAULT_COLOR
+          if (near === DEFAULT_COLOR) continue
+          for (const [channel, value] of rgbOf(near).entries()) mean[channel] = (mean[channel] ?? 0) + value
+          count += 1
+        }
+      }
+      const moved = rgbOf(color).map((value, channel) => value + SHARPEN * (value - (mean[channel] ?? 0) / count))
+      sharpened[y * width + x] = colorOf(moved)
+    }
+  }
+  return sharpened
+}
+
+function rgbOf(color: number): number[] {
+  return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff]
+}
+
+function colorOf([red = 0, green = 0, blue = 0]: number[]): number {
+  const channel = (value: number) => clamp(Math.round(value), 0, 255)
+  return (channel(red) << 16) | (channel(green) << 8) | channel(blue)
 }
 
 /**

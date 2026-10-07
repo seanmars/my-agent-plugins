@@ -27,8 +27,11 @@ import { imageNumbers, placeholders } from './placeholders'
 
 const PANE = 'image-preview'
 const ACCENT = 'suggestion'
-/** The card's picture at most; it shrinks to keep the shape, and to fit. */
-const HINT_ROOM: CellSize = { columns: 48, rows: 12 }
+/**
+ * The card's picture at most; it shrinks to keep the shape, and to fit. Its
+ * 1024 cells are no more color pairs than a Raster paints as given.
+ */
+const HINT_ROOM: CellSize = { columns: 64, rows: 16 }
 /** A card's border, padding and indent around its picture. */
 const CARD_CHROME = 6
 /** The card's header needs this much even beside a narrow picture. */
@@ -67,6 +70,10 @@ const expanded = atom({ plugin: 'image-preview', key: 'expanded' } as const, nul
 const decoded = new Map<string, Promise<Decoded>>()
 /** Ids whose decode failed: the next click on the chip tries again. */
 const failed = new Set<string>()
+/** The cells worked out for a picture, by size: a redraw at a size already drawn reuses them. */
+const drawnCells = new WeakMap<Decoded, Map<string, string>>()
+/** Sizes kept for one picture: the card's, as the terminal is resized. */
+const SIZES_KEPT = 4
 /** The draft's image numbers as last written; unset after a reload, so the first read writes. */
 let draftNumbers: string | undefined
 let isReadingDraft = false
@@ -253,6 +260,22 @@ function forgetDrafts(): void {
   draftNumbers = undefined
 }
 
+/** Raster cells for the picture at `size`, worked out once per size. */
+function cellsFor(picture: Decoded, size: CellSize): string {
+  const key = `${size.columns}x${size.rows}`
+  const sizes = drawnCells.get(picture) ?? new Map<string, string>()
+  drawnCells.set(picture, sizes)
+
+  const cells = sizes.get(key) ?? rasterCells(picture, size)
+  sizes.delete(key)
+  sizes.set(key, cells)
+  for (const oldest of sizes.keys()) {
+    if (sizes.size <= SIZES_KEPT) break
+    sizes.delete(oldest)
+  }
+  return cells
+}
+
 async function loadPreview($: EngineInterface, imageId: string): Promise<Preview> {
   try {
     return { decoded: await decodeImage($, imageId) }
@@ -405,7 +428,7 @@ async function hintCard($: EngineInterface, site: Site, image: ImageRef, room: C
       </Box>
       {'decoded' in preview ? (
         <Box justifyContent="center">
-          <Raster key={`hint:${image.id}`} columns={size.columns} rows={size.rows} cells={rasterCells(preview.decoded, size)} />
+          <Raster key={`hint:${image.id}`} columns={size.columns} rows={size.rows} cells={cellsFor(preview.decoded, size)} />
         </Box>
       ) : (
         <Text dimColor wrap="wrap">{preview.problem}</Text>

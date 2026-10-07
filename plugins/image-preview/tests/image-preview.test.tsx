@@ -222,8 +222,8 @@ test('the card keeps the picture inside its small room', async ($, on) => {
 
   await ui.press({ key: `chip:${UUID}:0` })
   const raster = await ui.find({ type: 'Raster' })
-  // Twice as wide as tall fills the 48 x 12 room: 48 pixels across, 24 down.
-  expect(raster?.props).toMatchObject({ columns: 48, rows: 12 })
+  // Twice as wide as tall fills the 64 x 16 room: 64 pixels across, 32 down.
+  expect(raster?.props).toMatchObject({ columns: 64, rows: 16 })
 })
 
 test('the card can be closed from its own corner', async ($, on) => {

@@ -58,6 +58,36 @@ test('a transparent pixel shows the terminal default color', () => {
   expect(cell).toEqual([0x2580, 0x01000000, 0x01000000])
 })
 
+/** A picture of `width` x `height` pixels, each the color `colorAt` gives. */
+function pictureOf(width: number, height: number, colorAt: (x: number) => number): Decoded {
+  const rgba = new Uint8Array(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const color = colorAt(x)
+      rgba.set([(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff, 255], (y * width + x) * 4)
+    }
+  }
+  return { width, height, originalWidth: width, originalHeight: height, rgba }
+}
+
+test('a picture scaled down has its edges sharpened', () => {
+  // 4 x 2 gray, dark left and light right, into 2 x 1 cells.
+  const picture = pictureOf(4, 2, (x) => (x < 2 ? 0x646464 : 0xc8c8c8))
+  const [left, right] = cellsOf(rasterCells(picture, { columns: 2, rows: 1 }))
+
+  // Each moves half its distance from its neighbours' mean, 150, away from it.
+  expect(left).toEqual([0x2580, 0x4b4b4b, 0x4b4b4b])
+  expect(right).toEqual([0x2580, 0xe1e1e1, 0xe1e1e1])
+})
+
+test('a picture drawn at its own size is not sharpened', () => {
+  const picture = pictureOf(2, 2, (x) => (x < 1 ? 0x646464 : 0xc8c8c8))
+  const [left, right] = cellsOf(rasterCells(picture, { columns: 2, rows: 1 }))
+
+  expect(left).toEqual([0x2580, 0x646464, 0x646464])
+  expect(right).toEqual([0x2580, 0xc8c8c8, 0xc8c8c8])
+})
+
 test('the decoder output is read back as pixels', () => {
   const pixels = new Uint8Array(2 * 1 * 4).fill(7)
   const decoded = parseDecoded(`20 10 2 1\n${pixels.toBase64()}`)
