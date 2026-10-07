@@ -1,0 +1,10 @@
+{
+  "name": "image-preview",
+  "version": "0.1.0",
+  "description": "Pasted images become chips you can click to preview, in the transcript and above the prompt",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["image", "preview", "ui"],
+  "types": "./types/index.d.ts"
+}

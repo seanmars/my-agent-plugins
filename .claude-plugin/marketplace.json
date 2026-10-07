@@ -42,6 +42,15 @@
       }
     },
     {
+      "name": "image-preview",
+      "source": "./plugins/image-preview",
+      "description": "Pasted images become chips you can click to preview, in the transcript and above the prompt",
+      "category": "ui",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
       "name": "pet",
       "source": "./plugins/pet",
       "description": "A small ASCII pet that lives in the band above the prompt, fed by /pet",
