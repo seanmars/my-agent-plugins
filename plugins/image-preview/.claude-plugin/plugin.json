@@ -5,6 +5,6 @@
   "author": {
     "name": "seanmars"
   },
-  "keywords": ["image", "preview", "ui"],
+  "keywords": ["ui", "image", "preview"],
   "types": "./types/index.d.ts"
 }

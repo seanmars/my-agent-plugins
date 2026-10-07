@@ -32,7 +32,7 @@
 
 - 只支援 Windows (需要 `powershell.exe` 5.1).
 - 只支援 terminal surface. 點擊 transcript 內的 chip 需要 fullscreen layout.
-- 從檔案拖曳進來的圖片在送出前沒有 preview. 送出後在 transcript 中可以 preview.
+- 草稿的 preview 可能顯示錯的圖片. 草稿出現新的 `[Image #N]` 時, mod 讀取當下 clipboard 裡的圖片, 不是實際附加的圖片. 如果圖片不是從 clipboard 貼上 (例如從檔案拖曳), 而 clipboard 裡有另一張舊圖, preview 會顯示那張舊圖. 送出後, transcript 的 preview 使用實際送出的圖片, 不受影響.
 - 從 `--resume` 載入的舊訊息沒有 chip, 因為載入不會觸發 `session.append`.
 
 ## 需求
@@ -48,4 +48,4 @@ claude plugin validate ./plugins/image-preview
 claude plugin test ./plugins/image-preview
 ```
 
-`prompt.edit` 在 2.1.291 的 test kit 中無法觸發, 草稿流程需要手動測試.
+`prompt.edit` 在 2.1.291 的 test kit 中無法觸發, 草稿流程需要手動測試. 手動測試時, 也要試一次從檔案拖曳圖片. 如果確認 preview 顯示錯圖, 就改成只在貼上動作時讀取 clipboard.

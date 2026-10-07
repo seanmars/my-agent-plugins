@@ -1,0 +1,9 @@
+{
+  "name": "group-commit",
+  "version": "0.1.0",
+  "description": "Split uncommitted changes into atomic commits by issue, down to hunks and lines within a shared file, ordered by dependency so every intermediate commit builds.",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["git", "commit", "conventional-commits", "skill"]
+}
