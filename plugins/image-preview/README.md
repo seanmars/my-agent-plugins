@@ -24,10 +24,10 @@
 
 ## 運作方式
 
-- **草稿的圖片**: 讀取 Claude Code 為每次貼上快取的檔案 `<temp>/<project>/<session>/images/<n>.<ext>`. `<temp>` 在 Windows 是 `%TEMP%\claude`, 在 macOS 和 Linux 是 `/tmp/claude-<uid>`, 設定 `CLAUDE_CODE_TMPDIR` 時改用它. 這個檔案就是實際附加的圖片, 所以從檔案拖曳的圖片也正確.
-- **偵測草稿**: 貼上圖片不會觸發 `prompt.edit`, 所以每 200ms 用 `$.prompt.read()` 讀一次輸入框.
-- **已送出的圖片**: 圖片內容取自 `session.append` 的 image block. 編號取自 transcript 該列的 `imagePasteIds`, 所以手打的 `[Image #N]` 不會讓編號標錯. transcript 寫入之前, 先用文字中的標記暫時命名.
-- **解碼**: `scripts/image.py` 用 Pillow 解碼 PNG, JPEG, GIF (第一格), WebP 和 BMP, 並縮到 400px 以內. 腳本由 `uv run --script` 執行, Pillow 依賴宣告在腳本內 (PEP 723).
+- **草稿的圖片**: 讀取 Claude Code 為每次貼上快取的檔案 `<temp>/<project>/<session>/images/<n>.<ext>`. `<temp>` 是 temp 根目錄下的 `claude` (Windows) 或 `claude-<uid>` (macOS 和 Linux). temp 根目錄是 `CLAUDE_CODE_TMPDIR`, 沒有設定時是系統的 temp 資料夾. 這個檔案就是實際附加的圖片, 所以從檔案拖曳的圖片也正確.
+- **偵測草稿**: 貼上圖片不會觸發 `prompt.edit`, 所以每 200ms 用 `$.prompt.read()` 讀一次輸入框. 只有互動模式的 terminal session 才會啟動這個 timer.
+- **已送出的圖片**: 圖片內容取自 `session.append` 的 image block. 編號取自 transcript 該列的 `imagePasteIds`, 所以手打的 `[Image #N]` 不會讓編號標錯. transcript 寫入之前, 先用文字中的標記暫時命名. 取得編號後, session state 改存快取檔案的路徑, 不再保存 base64. transcript 路徑取自 `classic.UserPromptSubmit` 和 `classic.SessionStart`.
+- **解碼**: `scripts/image.py` 用 Pillow 解碼 PNG, JPEG, GIF (第一格), WebP 和 BMP, 依照 EXIF orientation 轉正, 並縮到 400px 以內. 解碼結果最多保留 8 張. `scripts/paste_ids.py` 從 transcript 檔尾往回讀取 `imagePasteIds`, 不需要 Pillow. 兩個腳本都由 `uv run --script` 執行, 依賴宣告在腳本內 (PEP 723).
 - **繪製**: 使用 `Raster`, 每格一個 `▀`, 前景色和背景色各代表一個 pixel. 這個方法不需要 kitty graphics protocol, 所以 Windows Terminal 和 VS Code terminal 也能顯示. 支援 24-bit color 的 terminal 顯示效果最好.
 
 ## 限制
@@ -50,6 +50,7 @@ claude --plugin-dir ./plugins/image-preview --debug   # 存檔即 hot-reload
 claude plugin validate ./plugins/image-preview
 claude plugin test ./plugins/image-preview
 uv run --script ./plugins/image-preview/scripts/image.py decode --path <image> | head -1
+uv run --script ./plugins/image-preview/scripts/paste_ids.py --path <transcript.jsonl> --uuid <row uuid>
 ```
 
 `prompt.edit` 在 2.1.291 的 test kit 中無法觸發, 所以 `[Image #N]` 的上色需要手動測試.
