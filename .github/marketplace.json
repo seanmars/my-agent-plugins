@@ -67,15 +67,6 @@
       "author": {
         "name": "seanmars"
       }
-    },
-    {
-      "name": "pet",
-      "source": "./plugins/pet",
-      "description": "A small ASCII pet that lives in the band above the prompt, fed by /pet",
-      "category": "fun",
-      "author": {
-        "name": "seanmars"
-      }
     }
   ]
 }

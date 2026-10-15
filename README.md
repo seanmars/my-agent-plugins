@@ -12,7 +12,6 @@
 | [code-review-to-html](plugins/code-review-to-html/) | skill | 把 code review markdown 報告轉成互動式 HTML |
 | [group-commit](plugins/group-commit/) | skill | 把未 commit 的變更依 issue 拆成 atomic commits |
 | [notifier](plugins/notifier/) | hooks | Claude 完成回應或需要輸入時跳原生通知 (Windows / macOS) |
-| [pet](plugins/pet/) | hooks | 在輸入框上方養一隻 ASCII 小寵物 |
 
 ## 安裝
 
@@ -33,12 +32,11 @@ npx skills add seanmars/my-agent-plugins --skill group-commit -g
 
 ### Hooks
 
-hooks 類 plugin (`notifier`, `pet`) 只支援 Claude Code, 需透過 marketplace 安裝:
+hooks 類 plugin (`notifier`) 只支援 Claude Code, 需透過 marketplace 安裝:
 
 ```bash
 claude plugin marketplace add seanmars/my-agent-plugins
 claude plugin install notifier@my-agent-plugins
-claude plugin install pet@my-agent-plugins
 ```
 
 ## 目錄結構
