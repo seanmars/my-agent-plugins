@@ -53,7 +53,7 @@
     {
       "name": "image-preview",
       "source": "./plugins/image-preview",
-      "description": "Pasted images become chips you can click to preview, in the transcript and above the prompt",
+      "description": "Pasted images become chips you can click to open in the system viewer, in the transcript and above the prompt",
       "category": "ui",
       "author": {
         "name": "seanmars"
