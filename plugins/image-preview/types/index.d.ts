@@ -13,16 +13,10 @@ export type ImageData = {
 }
 
 /**
- * Where the decoder reads an image: a file Claude Code cached for a paste,
+ * Where the viewer reads an image: a file Claude Code cached for a paste,
  * or bytes the transcript row carried, kept only while no file is known.
  */
-export type DecodeSource = { path: string } | ImageData
-
-/** The chip whose card is open: the drawing that holds it and its image. */
-export type OpenHint = {
-  site: string
-  imageId: string
-}
+export type PictureSource = { path: string } | ImageData
 
 declare module 'claude-code' {
   interface PluginState {
@@ -32,9 +26,7 @@ declare module 'claude-code' {
       /** The `[Image #N]` placeholders in the prompt draft, in order. */
       draftImages: ImageRef[]
       /** Where each sent image is read from, by its id. */
-      imageSource: StateFamily<DecodeSource>
-      /** One card at a time, under the chip that opened it. */
-      hint: OpenHint | null
+      imageSource: StateFamily<PictureSource>
     }
   }
 }

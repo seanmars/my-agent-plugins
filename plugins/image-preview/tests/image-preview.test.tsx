@@ -7,9 +7,6 @@ const UUID = 'message-1'
 const PNG = 'iVBORw0KGgo='
 const SESSION: SessionStartInput = { cwd: 'C:/work', surface: 'terminal', isInteractive: true }
 
-/** What the decoder answers for any picture: 8 x 4 pixels of red, scaled to 4 x 2. */
-const DECODED = `8 4 4 2\n${new Uint8Array(4 * 2 * 4).map((_, i) => (i % 4 === 1 || i % 4 === 2 ? 0 : 255)).toBase64()}`
-
 /**
  * Claude Code's folders, the paste cache and the transcripts: Windows keeps
  * its temp folder as `claude` under TEMP, macOS as `claude-<uid>` under /tmp;
@@ -73,8 +70,6 @@ const promptRow = (uuid: string, content: Args<'session.append'>['message']['con
 
 type Answer = Pick<ProcessRunResult, 'exitCode' | 'stdout' | 'stderr'>
 type Host = {
-  /** What the decoder answers. */
-  decoder?: Answer
   /** What each look for paste numbers answers in turn; the last repeats. */
   pasteIds?: Answer[]
   /** What the system viewer's helper answers. */
@@ -85,7 +80,7 @@ type Host = {
 
 /**
  * A test's `on` is the bottom of the chain: the engine's own behaviour, the
- * prompt box, Claude Code's files and the uv helper are answered here.
+ * prompt box, Claude Code's files and the uv helpers are answered here.
  */
 const setup = (on: On, host: Host = {}) => {
   const clock = mock.clock(on, { now: 1_000_000 })
@@ -110,9 +105,7 @@ const setup = (on: On, host: Host = {}) => {
     runs.push(e)
     const answer = e.argv.some((arg) => arg.endsWith('/paste_ids.py'))
       ? (pasteIds.length > 1 ? pasteIds.shift() : pasteIds[0])
-      : e.argv.some((arg) => arg.endsWith('/open_image.py'))
-        ? (host.viewer ?? { exitCode: 0, stdout: '', stderr: '' })
-        : (host.decoder ?? { exitCode: 0, stdout: DECODED, stderr: '' })
+      : (host.viewer ?? { exitCode: 0, stdout: '', stderr: '' })
     return { value: { exitCode: 1, stdout: '', stderr: '', ...answer, isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('ui.toast', ($, e) => {
@@ -126,11 +119,11 @@ const setup = (on: On, host: Host = {}) => {
   return { clock, draft, session, runs, toasts }
 }
 
-/** The runs of one helper: the decoder's by its `decode` mode, the paste numbers' by `paste_ids.py`. */
-const runsOf = (runs: Args<'process.run'>[], part: string) =>
-  runs.filter((run) => run.argv.some((arg) => arg === part || arg.endsWith(`/${part}`)))
-/** The file each decode read, in order. */
-const decodedPaths = (runs: Args<'process.run'>[]) => runsOf(runs, 'decode').map((run) => run.argv.at(-1))
+/** The runs of one helper, by its script name. */
+const runsOf = (runs: Args<'process.run'>[], script: string) => runs.filter((run) => run.argv.some((arg) => arg.endsWith(`/${script}`)))
+const opens = (runs: Args<'process.run'>[]) => runsOf(runs, 'open_image.py')
+/** The file each open of the viewer named, in order. */
+const openedPaths = (runs: Args<'process.run'>[]) => opens(runs).map((run) => run.argv.at(-1))
 
 /**
  * Appends a prompt row. The kit has no store beneath the chain for rows (a
@@ -154,6 +147,15 @@ const mountMessage = ($: Engine, requestId = UUID) =>
 const mountBand = ($: Engine, props: Partial<RenderPropsOf['AbovePrompt']> = {}) =>
   $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: { ...BAND_PROPS, ...props } })
 
+/** Starts a terminal session whose draft holds `text`, read by one tick, and mounts the band. */
+const draftBand = async ($: Engine, on: On, text: string, host: Host = {}) => {
+  const kit = setup(on, host)
+  await $.session.start(SESSION)
+  kit.draft.text = text
+  await kit.clock.advance(200)
+  return { ...kit, band: await mountBand($) }
+}
+
 
 // ── Sent prompts ────────────────────────────────────────────────────────────
 
@@ -174,67 +176,26 @@ test('a prompt with no image is left to the engine', async ($, on) => {
   expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
 })
 
-test('a click on the chip opens a card with the picture, and a second closes it', async ($, on) => {
+test('a click on a sent chip opens the picture in the system viewer from the bytes it carried', async ($, on) => {
   const { runs } = setup(on)
   await sendImage($)
   const ui = await mountMessage($)
 
   await ui.press({ key: `chip:${UUID}:0` })
-  expect(await ui.find({ type: 'Raster' })).toBeDefined()
-  expect(await ui.find({ key: `outside:${UUID}:0` })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Image #1 · 8×4/ })).toBeDefined()
-  expect(runsOf(runs, 'decode')[0]?.init?.stdin).toBe(PNG)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  expect(await ui.find({ type: 'Raster' })).toBeUndefined()
-})
-
-test('the card decodes a picture once, however often it is drawn', async ($, on) => {
-  const { runs } = setup(on)
-  await sendImage($)
-  const ui = await mountMessage($)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `chip:${UUID}:0` })
-  expect(runsOf(runs, 'decode')).toHaveLength(1)
-})
-
-test('the card keeps the picture inside its small room', async ($, on) => {
-  setup(on)
-  await sendImage($)
-  const ui = await mountMessage($)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  const raster = await ui.find({ type: 'Raster' })
-  // Twice as wide as tall fills the 64 x 16 room: 64 pixels across, 32 down.
-  expect(raster?.props).toMatchObject({ columns: 64, rows: 16 })
-})
-
-test('↗ opens a sent picture in the system viewer from the bytes it carried', async ($, on) => {
-  const { runs } = setup(on)
-  await sendImage($)
-  const ui = await mountMessage($)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `outside:${UUID}:0` })
-  const [open] = runsOf(runs, 'open_image.py')
-  expect(open?.argv).toEqual(expect.arrayContaining(['--media-type', 'image/png']))
+  const [open] = opens(runs)
+  expect(open?.argv).toEqual(expect.arrayContaining(['uv', '--script', '--media-type', 'image/png']))
   expect(open?.init?.stdin).toBe(PNG)
 })
 
-test('↗ opens a draft picture from the file Claude Code cached', async ($, on) => {
-  const { clock, draft, runs } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
+test('every click opens the picture again, and no card is drawn', async ($, on) => {
+  const { runs } = setup(on)
+  await sendImage($)
+  const ui = await mountMessage($)
 
-  await band.press({ key: 'chip:draft:2' })
-  await band.press({ key: 'outside:draft:2' })
-  const [open] = runsOf(runs, 'open_image.py')
-  expect(open?.argv).toEqual(expect.arrayContaining(['--path', `${PASTES}/2.png`]))
-  expect(open?.init?.stdin).toBeUndefined()
+  await ui.press({ key: `chip:${UUID}:0` })
+  await ui.press({ key: `chip:${UUID}:0` })
+  expect(opens(runs)).toHaveLength(2)
+  expect(await ui.findAll({ type: 'Raster' })).toHaveLength(0)
 })
 
 test('a viewer that cannot open the picture says so in a toast', async ($, on) => {
@@ -243,43 +204,7 @@ test('a viewer that cannot open the picture says so in a toast', async ($, on) =
   const ui = await mountMessage($)
 
   await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `outside:${UUID}:0` })
   expect(toasts).toEqual(['Cannot open Image #1: OSError: no app'])
-})
-
-test('the card can be closed from its own corner', async ($, on) => {
-  setup(on)
-  await sendImage($)
-  const ui = await mountMessage($)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  await ui.press({ key: `close:${UUID}:0` })
-  expect(await ui.find({ type: 'Raster' })).toBeUndefined()
-})
-
-test('only the last few decoded pictures stay held', async ($, on) => {
-  const { runs } = setup(on)
-  const image = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } } as const
-  await append($, promptRow(UUID, Array.from({ length: 9 }, () => image)))
-  const ui = await mountMessage($)
-
-  for (let index = 0; index < 9; index++) await ui.press({ key: `chip:${UUID}:${index}` })
-  expect(runsOf(runs, 'decode')).toHaveLength(9)
-  // Eight stay: the last one opened is held, the first one is decoded again.
-  await ui.press({ key: `chip:${UUID}:7` })
-  expect(runsOf(runs, 'decode')).toHaveLength(9)
-  await ui.press({ key: `chip:${UUID}:0` })
-  expect(runsOf(runs, 'decode')).toHaveLength(10)
-})
-
-test('an image the decoder cannot read says so in the card', async ($, on) => {
-  setup(on, { decoder: { exitCode: 1, stdout: '', stderr: 'Parameter is not valid.\r\nmore' } })
-  await sendImage($)
-  const ui = await mountMessage($)
-
-  await ui.press({ key: `chip:${UUID}:0` })
-  expect(await ui.find({ type: 'Raster' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: 'Cannot decode image/png: Parameter is not valid.' })).toBeDefined()
 })
 
 test('a sent image takes its number from the transcript line, not from a typed tag', async ($, on) => {
@@ -321,15 +246,15 @@ test('a label waits for its transcript line to be written', async ($, on) => {
   expect(runsOf(runs, 'paste_ids.py')).toHaveLength(2)
 })
 
-test('once its paste is known a sent image is read from the cached file, not kept bytes', async ($, on) => {
+test('once its paste is known a sent image opens from the cached file, not kept bytes', async ($, on) => {
   const { clock, runs } = setup(on, { pasteIds: [{ exitCode: 0, stdout: '2', stderr: '' }] })
   await sendImage($, '[Image #2] what is this?')
   await clock.advance(500)
 
   const ui = await mountMessage($)
   await ui.press({ key: `chip:${UUID}:0` })
-  expect(decodedPaths(runs)).toEqual([`${PASTES}/2.png`])
-  expect(runsOf(runs, 'decode')[0]?.init?.stdin).toBeUndefined()
+  expect(openedPaths(runs)).toEqual([`${PASTES}/2.png`])
+  expect(opens(runs)[0]?.init?.stdin).toBeUndefined()
 })
 
 test('a sent image whose paste is not cached keeps its bytes', async ($, on) => {
@@ -339,7 +264,7 @@ test('a sent image whose paste is not cached keeps its bytes', async ($, on) => 
 
   const ui = await mountMessage($)
   await ui.press({ key: `chip:${UUID}:0` })
-  expect(runsOf(runs, 'decode')[0]?.init?.stdin).toBe(PNG)
+  expect(opens(runs)[0]?.init?.stdin).toBe(PNG)
 })
 
 test('a line that keeps no paste numbers leaves the labels as they were', async ($, on) => {
@@ -371,93 +296,59 @@ test('another session.start adds no second draft timer', async ($, on) => {
 })
 
 test('a draft with no image leaves the band to the engine', async ($, on) => {
-  const { clock } = setup(on)
-  await $.session.start(SESSION)
-  await clock.advance(200)
-
-  const band = await mountBand($)
+  const { band } = await draftBand($, on, '')
   expect(await band.find({ type: 'Text', text: 'engine' })).toBeDefined()
   expect(await band.findAll({ type: 'Button' })).toHaveLength(0)
 })
 
 test('a pasted image shows as a chip above the prompt without another key', async ($, on) => {
-  const { clock, draft } = setup(on)
-  await $.session.start(SESSION)
-
-  draft.text = 'look [Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
+  const { band } = await draftBand($, on, 'look [Image #2]')
   expect((await band.find({ key: 'chip:draft:2' }))?.props.label).toBe('Image #2')
 })
 
-test('a draft card shows the file Claude Code cached for that paste', async ($, on) => {
-  const { clock, draft, runs } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
+test('a click on a draft chip opens the file Claude Code cached for that paste', async ($, on) => {
+  const { band, runs } = await draftBand($, on, '[Image #2]')
 
   await band.press({ key: 'chip:draft:2' })
-  expect(await band.find({ type: 'Raster' })).toBeDefined()
-  const [decode] = runsOf(runs, 'decode')
-  expect(decode?.argv).toEqual(expect.arrayContaining(['uv', '--script', '--path', `${PASTES}/2.png`]))
-  expect(decode?.init?.stdin).toBeUndefined()
+  const [open] = opens(runs)
+  expect(open?.argv).toEqual(expect.arrayContaining(['uv', '--script', '--path', `${PASTES}/2.png`]))
+  expect(open?.init?.stdin).toBeUndefined()
 })
 
 test('a paste cached under another extension is found by its number alone', async ($, on) => {
-  const { clock, draft, runs } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #20]'
-  await clock.advance(200)
-  const band = await mountBand($)
+  const { band, runs } = await draftBand($, on, '[Image #20]')
 
   await band.press({ key: 'chip:draft:20' })
-  expect(runsOf(runs, 'decode')[0]?.argv).toEqual(expect.arrayContaining(['--path', `${PASTES}/20.jpg`]))
+  expect(openedPaths(runs)).toEqual([`${PASTES}/20.jpg`])
 })
 
 test('on macOS the paste cache is found under /tmp/claude-<uid>', async ($, on) => {
-  const { clock, draft, runs } = setup(on, { env: { HOME: '/Users/me' } })
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
+  const { band, runs } = await draftBand($, on, '[Image #2]', { env: { HOME: '/Users/me' } })
 
   await band.press({ key: 'chip:draft:2' })
-  expect(runsOf(runs, 'decode')[0]?.argv).toEqual(expect.arrayContaining(['--path', `${MAC_PASTES}/2.png`]))
+  expect(openedPaths(runs)).toEqual([`${MAC_PASTES}/2.png`])
 })
 
 test('CLAUDE_CODE_TMPDIR moves the temp folder under it, not in its place', async ($, on) => {
-  const { clock, draft, runs } = setup(on, { env: { ...WINDOWS_ENV, CLAUDE_CODE_TMPDIR: 'D:/ctmp/' } })
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
+  const { band, runs } = await draftBand($, on, '[Image #2]', { env: { ...WINDOWS_ENV, CLAUDE_CODE_TMPDIR: 'D:/ctmp/' } })
 
   await band.press({ key: 'chip:draft:2' })
-  expect(runsOf(runs, 'decode')[0]?.argv).toEqual(expect.arrayContaining(['--path', `${CUSTOM_PASTES}/2.png`]))
+  expect(openedPaths(runs)).toEqual([`${CUSTOM_PASTES}/2.png`])
 })
 
 test('on macOS CLAUDE_CODE_TMPDIR holds the claude-<uid> folder', async ($, on) => {
-  const { clock, draft, runs } = setup(on, { env: { HOME: '/Users/me', CLAUDE_CODE_TMPDIR: '/var/ctmp' } })
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
+  const { band, runs } = await draftBand($, on, '[Image #2]', { env: { HOME: '/Users/me', CLAUDE_CODE_TMPDIR: '/var/ctmp' } })
 
   await band.press({ key: 'chip:draft:2' })
-  expect(runsOf(runs, 'decode')[0]?.argv).toEqual(expect.arrayContaining(['--path', `${CUSTOM_MAC_PASTES}/2.png`]))
+  expect(openedPaths(runs)).toEqual([`${CUSTOM_MAC_PASTES}/2.png`])
 })
 
-test('a typed tag with no cached paste says so', async ($, on) => {
-  const { clock, draft } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #7]'
-  await clock.advance(200)
-  const band = await mountBand($)
+test('a typed tag with no cached paste says so in a toast', async ($, on) => {
+  const { band, runs, toasts } = await draftBand($, on, '[Image #7]')
 
   await band.press({ key: 'chip:draft:7' })
-  expect(await band.find({ type: 'Raster' })).toBeUndefined()
-  expect(await band.find({ type: 'Text', text: /no pasted image #7/ })).toBeDefined()
+  expect(opens(runs)).toHaveLength(0)
+  expect(toasts).toEqual(['Cannot open Image #7: Claude Code holds no pasted image #7 in this session.'])
 })
 
 test('a draft write that fails is written again on the next tick', async ($, on) => {
@@ -473,13 +364,8 @@ test('a draft write that fails is written again on the next tick', async ($, on)
   expect((await band.find({ key: 'chip:draft:2' }))?.props.label).toBe('Image #2')
 })
 
-test('after a session switch a draft tag shows the paste of the new session', async ($, on) => {
-  const { clock, draft, session, runs } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
-  const band = await mountBand($)
-  await band.press({ key: 'chip:draft:2' })
+test('after a session switch a draft tag opens the paste of the new session', async ($, on) => {
+  const { band, clock, session, runs } = await draftBand($, on, '[Image #2]')
   await band.press({ key: 'chip:draft:2' })
 
   // `/resume`: the recalled draft names the other session's paste #2.
@@ -488,14 +374,11 @@ test('after a session switch a draft tag shows the paste of the new session', as
   await clock.advance(200)
   const resumed = await mountBand($)
   await resumed.press({ key: 'chip:draft:2' })
-  expect(decodedPaths(runs)).toEqual([`${PASTES}/2.png`, `${NEXT_PASTES}/2.png`])
+  expect(openedPaths(runs)).toEqual([`${PASTES}/2.png`, `${NEXT_PASTES}/2.png`])
 })
 
 test('the chips leave once the draft holds no tag', async ($, on) => {
-  const { clock, draft } = setup(on)
-  await $.session.start(SESSION)
-  draft.text = '[Image #2]'
-  await clock.advance(200)
+  const { clock, draft } = await draftBand($, on, '[Image #2]')
 
   draft.text = ''
   await clock.advance(200)
