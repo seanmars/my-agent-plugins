@@ -1,0 +1,9 @@
+{
+  "name": "codex-imagegen",
+  "version": "0.0.1",
+  "description": "Generate images by calling Codex CLI's built-in image generation ($imagegen, gpt-image-2) in headless mode and save them into the current project.",
+  "author": {
+    "name": "seanmars"
+  },
+  "keywords": ["image", "codex", "imagegen", "gpt-image", "skill"]
+}

@@ -10,6 +10,7 @@
 | [architecture-diagram](plugins/architecture-diagram/) | skill | 產生單檔互動式 HTML 系統架構圖 |
 | [code-review-helper](plugins/code-review-helper/) | skill | 產生互動式 HTML code review 報告 |
 | [code-review-to-html](plugins/code-review-to-html/) | skill | 把 code review markdown 報告轉成互動式 HTML |
+| [codex-imagegen](plugins/codex-imagegen/) | skill | 透過 Codex CLI 的 `$imagegen` 產生圖片 |
 | [group-commit](plugins/group-commit/) | skill | 把未 commit 的變更依 issue 拆成 atomic commits |
 | [notifier](plugins/notifier/) | hooks | Claude 完成回應或需要輸入時跳原生通知 (Windows / macOS) |
 
