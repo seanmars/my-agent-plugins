@@ -13,6 +13,7 @@
 
 ## 前置需求
 
+- 支援 Windows (PowerShell) 和 macOS (bash/zsh).
 - 已安裝 [Codex CLI](https://github.com/openai/codex) 並登入 ChatGPT 帳號.
 - 產圖會用掉 ChatGPT 方案的 Codex 額度.
 
