@@ -20,7 +20,7 @@ Memory files                       1.2k
 Rules                               400
   rules/style.md · Project          400
 
-[ Refresh ] [ Full count ]
+[ Refresh ] [ Full count ] [ Turn off ]
 ```
 
 ## 行為
@@ -32,7 +32,9 @@ Rules                               400
 | 自動更新 | session 開始, main loop 每個 turn 結束, compaction 之後, `/clear` 或 `/resume` 之後 |
 | `Refresh` (`r`) | 用 `summary` 重新計算 |
 | `Full count` (`f`) | 用 `full` 重新計算 |
-| `/ctx-usage-dock` | 開啟 pane 並重新計算 |
+| `Turn off` (`o`) | 和 `/ctx-usage-dock off` 相同 |
+| `/ctx-usage-dock` 或 `/ctx-usage-dock on` | 開啟功能, 開啟 pane 並重新計算 |
+| `/ctx-usage-dock off` | 關閉功能: 關閉 pane, 清除 status line, 停止自動計算. 設定存在 `$.store`, 之後的 session 也保持關閉 |
 
 ## 運作方式
 

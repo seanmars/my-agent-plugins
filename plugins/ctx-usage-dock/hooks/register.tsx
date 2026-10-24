@@ -6,6 +6,9 @@
  * `summary` estimate; the pane's `Full count` button asks the token-count API
  * for each category, as /context does.
  *
+ * `/ctx-usage-dock off` closes the pane, clears the status line and stops the
+ * counting, in this session and the next ones, until `/ctx-usage-dock on`.
+ *
  * Everything that takes `$` is a top-level declaration: the loader inventories
  * what a hooks module reaches for through `$`.
  */
@@ -23,6 +26,8 @@ const TOP_ITEMS = 8
 const STATUS_CATEGORIES = 3
 /** A rules file sits in a `.claude/rules` folder; every other memory file is memory. */
 const RULES_PATH = /[\\/]\.claude[\\/]rules[\\/]/
+/** The `$.store` key that keeps the on/off switch across sessions; unset is on. */
+const ENABLED_KEY = 'enabled'
 
 // Change the tag when UsageSnapshot's fields change: it declines what an
 // earlier version stored, which outlives a reload.
@@ -134,6 +139,29 @@ function statusLine(snap: UsageSnapshot): string {
   return top.length > 0 ? `${head} │ ${top.join(' · ')}` : head
 }
 
+// ── On and off ──────────────────────────────────────────────────────────────
+
+async function isEnabled($: EngineInterface): Promise<boolean> {
+  return (await $.store.get(ENABLED_KEY)) !== false
+}
+
+async function turnOn($: EngineInterface): Promise<void> {
+  await $.store.set(ENABLED_KEY, true)
+  await $.ui.open({ id: PANE, title: TITLE })
+  await recount($, 'summary')
+}
+
+async function turnOff($: EngineInterface): Promise<void> {
+  await $.store.set(ENABLED_KEY, false)
+  await $.ui.close({ id: PANE })
+  $.ui.status(undefined)
+}
+
+/** The count a turn, a compaction or a new session asks for: none while turned off. */
+async function autoRecount($: EngineInterface): Promise<void> {
+  if (await isEnabled($)) await recount($, 'summary')
+}
+
 // ── Counting ────────────────────────────────────────────────────────────────
 
 async function recount($: EngineInterface, detail: ContextBreakdownDetail): Promise<void> {
@@ -145,7 +173,8 @@ async function recount($: EngineInterface, detail: ContextBreakdownDetail): Prom
     if (!context.breakdown) return
     const snap = toSnapshot(context.breakdown, detail, await $.clock.now())
     await update($, snapshot, () => snap)
-    $.ui.status(statusLine(snap))
+    // Turned off while the count ran: the status line stays clear.
+    if (await isEnabled($)) $.ui.status(statusLine(snap))
   } catch (error) {
     $.ui.log(`${PLUGIN}: counting the context failed: ${String(error)}`, { to: 'debug' })
   } finally {
@@ -238,35 +267,44 @@ function snapshotView($: EngineInterface, site: Site, snap: UsageSnapshot, width
 
 export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: PLUGIN, description: 'Show the context usage pane and count again' })
-    void $.ui.open({ id: PANE, title: TITLE })
+    await $.command.register({
+      name: PLUGIN,
+      description: 'Show the context usage pane, or turn it off and on',
+      argumentHint: '[on|off]',
+    })
+    if (await isEnabled($)) void $.ui.open({ id: PANE, title: TITLE })
     const started = await next(e)
-    await recount($, 'summary')
+    await autoRecount($)
     return started
   })
 
-  on('command.run', { command: PLUGIN }, async ($) => {
-    await $.ui.open({ id: PANE, title: TITLE })
-    await recount($, 'summary')
-    return { text: 'Context usage pane opened.' }
+  on('command.run', { command: PLUGIN }, async ($, e) => {
+    const arg = e.args.trim().toLowerCase()
+    if (arg === 'off') {
+      await turnOff($)
+      return { text: 'ctx-usage-dock is off. Run /ctx-usage-dock on to turn it on again.' }
+    }
+    if (arg !== '' && arg !== 'on') return { text: 'Usage: /ctx-usage-dock [on|off]' }
+    await turnOn($)
+    return { text: 'ctx-usage-dock is on.' }
   })
 
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
-    if (e.agentId === undefined) await recount($, 'summary')
+    if (e.agentId === undefined) await autoRecount($)
     return done
   })
 
   on('session.compact', async ($, e, next) => {
     const compacted = await next(e)
-    if (e.agentId === undefined) await recount($, 'summary')
+    if (e.agentId === undefined) await autoRecount($)
     return compacted
   })
 
   // `/clear`, `/resume` and a fork switch sessions without another `session.start`.
   on('classic.SessionStart', async ($, e, next) => {
     const started = await next(e)
-    await recount($, 'summary')
+    await autoRecount($)
     return started
   }).catch(($, e, next) => next(e))
 
@@ -282,6 +320,7 @@ export const register: Register = (on) => {
         <Box flexDirection="row" gap={1} marginTop={1}>
           <Button label="Refresh" hotkey="r" onPress={() => void recount($, 'summary')} />
           <Button label="Full count" hotkey="f" onPress={() => void recount($, 'full')} />
+          <Button label="Turn off" hotkey="o" onPress={() => void turnOff($)} />
           {counting && <Text dimColor>counting...</Text>}
         </Box>
       </Box>

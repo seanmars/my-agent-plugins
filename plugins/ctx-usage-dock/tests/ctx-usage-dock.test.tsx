@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { Args, On, RenderPropsOf, SessionContextBreakdown, SessionStartInput, SessionUsage } from 'claude-code'
 
@@ -52,13 +52,26 @@ const BREAKDOWN: SessionContextBreakdown = {
   apiUsage: null,
 }
 
-/** Answers `$.session.usage` with BREAKDOWN, and keeps what each call asked and each status line. */
-function setup(on: On) {
+/**
+ * Answers `$.session.usage` with BREAKDOWN, and keeps what each call asked,
+ * each status line and each pane opened or closed. `store` seeds `$.store`.
+ */
+function setup(on: On, store: Record<string, unknown> = {}) {
   const asked: Args<'session.usage'>[] = []
   const statuses: (string | undefined)[] = []
+  const panes: string[] = []
+  mock.store(on, store)
   on('command.register', () => ({ value: { command: PLUGIN } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.open', (_, e) => {
+    panes.push(`open ${e.id}`)
+    return { value: { isPlaced: true } }
+  })
+  on('ui.close', (_, e) => {
+    panes.push(`close ${e.id}`)
+    return { value: undefined }
+  })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('turn.complete', (_, e) => ({ text: e.answer }))
   on('clock.now', () => ({ value: Date.UTC(2026, 9, 24, 4, 5) }))
   on('session.usage', (_, e) => {
     asked.push(e)
@@ -69,8 +82,14 @@ function setup(on: On) {
     statuses.push(e.text)
     return { value: undefined }
   })
-  return { asked, statuses }
+  return { asked, statuses, panes }
 }
+
+const endTurn = ($: Engine) =>
+  $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+
+const runCommand = ($: Engine, args: string) =>
+  $.command.run({ command: PLUGIN, args, origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 160 } })
 
 const mountPane = ($: Engine) =>
   $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'Pane', requestId: 'ctx-usage', props: PANE_PROPS })
@@ -117,4 +136,51 @@ test('before any count the pane says so', async ($, on) => {
 
   expect(await ui.find({ type: 'Text', text: 'No count yet. Press Refresh.' })).toBeDefined()
   await ui.unmount()
+})
+
+test('off closes the pane, clears the status line and stops counting', async ($, on) => {
+  const { asked, statuses, panes } = setup(on)
+  await $.session.start(SESSION)
+
+  await endTurn($)
+  expect(asked).toHaveLength(2)
+
+  const result = await runCommand($, 'off')
+  await endTurn($)
+
+  expect(result.text).toContain('off')
+  expect(panes).toEqual(['open ctx-usage', 'close ctx-usage'])
+  expect(statuses.at(-1)).toBeUndefined()
+  expect(asked).toHaveLength(2)
+})
+
+test('off holds in the next session until on', async ($, on) => {
+  const { asked, panes } = setup(on, { enabled: false })
+  await $.session.start(SESSION)
+
+  expect(panes).toEqual([])
+  expect(asked).toHaveLength(0)
+
+  await runCommand($, 'on')
+
+  expect(panes).toEqual(['open ctx-usage'])
+  expect(asked.map((one) => one.breakdown)).toEqual(['summary'])
+})
+
+test('the pane turns itself off', async ($, on) => {
+  const { panes } = setup(on)
+  await $.session.start(SESSION)
+  const ui = await mountPane($)
+
+  await ui.press({ key: 'Turn off' })
+
+  expect(panes.at(-1)).toBe('close ctx-usage')
+  await ui.unmount()
+})
+
+test('an unknown argument shows the usage', async ($, on) => {
+  setup(on)
+  const result = await runCommand($, 'maybe')
+
+  expect(result.text).toBe('Usage: /ctx-usage-dock [on|off]')
 })
