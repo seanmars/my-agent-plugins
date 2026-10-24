@@ -51,6 +51,15 @@
       }
     },
     {
+      "name": "ctx-usage-dock",
+      "source": "./plugins/ctx-usage-dock",
+      "description": "A docked pane and a status line that break the context window down by category: messages, skills, MCP tools, memory files, rules and agents",
+      "category": "ui",
+      "author": {
+        "name": "seanmars"
+      }
+    },
+    {
       "name": "group-commit",
       "source": "./plugins/group-commit",
       "description": "Split uncommitted changes into atomic commits by issue, down to hunks and lines within a shared file, ordered by dependency so every intermediate commit builds.",
