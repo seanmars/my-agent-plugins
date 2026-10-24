@@ -1,6 +1,6 @@
 {
   "name": "ctx-usage-dock",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A docked pane and a status line that break the context window down by category: messages, skills, MCP tools, memory files, rules and agents",
   "author": {
     "name": "seanmars"
