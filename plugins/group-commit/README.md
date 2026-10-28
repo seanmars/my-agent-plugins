@@ -15,7 +15,7 @@
 
 ## 使用方式
 
-當使用者說「幫我 commit」/「拆 commit」/「依 issue 分組 commit」或輸入 `/group-commit` 時自動觸發. 可以直接告訴它有哪些 issue, 會以此作為分組依據.
+只在使用者明確要求拆分或排序 commit 時觸發, 例如「拆 commit」/「依功能 commit」/「依序 commit」/「group commit」或輸入 `/group-commit`. 單純的「幫我 commit」/「全部一起 commit」不會觸發, 會走一般的 git commit. 可以直接告訴它有哪些 issue, 會以此作為分組依據.
 
 需要 Node.js 16+ (只用內建模組, 不需 npm install).
 

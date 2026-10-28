@@ -4,8 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PROJECT 系統架構圖</title>
+<script>
+  /* 主題: 在 render 前套用上次的選擇, 避免先閃一下預設配色. 預設 dark */
+  try{ const t=localStorage.getItem('arch-theme'); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+</script>
 <style>
   :root{
+    color-scheme:dark;
     --bg:#0a0e1a;
     --panel:#131b2e;
     --panel2:#0f1626;
@@ -13,6 +18,25 @@
     --txt:#e6edf7;
     --muted:#8b9bb4;
     --dim:#5d6c85;
+
+    /* 其他文字與表面色. 換主題時跟著切換 */
+    --glow:#16203a;     /* body 漸層的亮點 */
+    --strong:#f2f7ff;   /* 節點標題 */
+    --txt2:#c3d1e5;     /* 卡片 / 流程內文 */
+    --h2:#cfe0f5;
+    --chip:#cbd7ea;
+    --nodel:#b9c8de;
+    --bandtxt:#9fb0c9;
+    --bandfill:#ffffff;
+    --bandop:.018;
+    --elabel:#dbe6f5;
+    --thbg:#182238;
+    --thtxt:#a9bcd6;
+    --tdline:#1b2437;
+    --tdtxt:#c8d5e8;
+    --codebg:#0c1424;
+    --codetxt:#9fd5ff;
+    --pinglow:rgba(255,255,255,.34);
 
     /* 元件類型色票 (KIND 用). 依專案需要挑用, 不必用滿 */
     --k1:#94a3b8;  /* slate   */
@@ -35,12 +59,47 @@
     --p9:#a3e635;  /* lime    */
     --p10:#f97316; /* orange  */
   }
+  /* light: 色票改用較深的色階, 線條與文字在白底上才看得清楚 */
+  :root[data-theme="light"]{
+    color-scheme:light;
+    --bg:#f4f6fa;
+    --panel:#ffffff;
+    --panel2:#eef2f8;
+    --line:#d3dbe7;
+    --txt:#1a2233;
+    --muted:#56657d;
+    --dim:#7a879c;
+
+    --glow:#dfe8f7;
+    --strong:#0f172a;
+    --txt2:#334155;
+    --h2:#1e3a5f;
+    --chip:#334155;
+    --nodel:#3f4d63;
+    --bandtxt:#56657d;
+    --bandfill:#1e3a8a;
+    --bandop:.035;
+    --elabel:#1e293b;
+    --thbg:#e3e9f3;
+    --thtxt:#3b4c66;
+    --tdline:#e3e8f0;
+    --tdtxt:#334155;
+    --codebg:#eef3fb;
+    --codetxt:#0b5cad;
+    --pinglow:rgba(15,23,42,.28);
+
+    --k1:#64748b; --k2:#9333ea; --k3:#059669; --k4:#db2777;
+    --k5:#d97706; --k6:#2563eb; --k7:#e11d48;
+
+    --p1:#0284c7; --p2:#4f46e5; --p3:#0891b2; --p4:#e11d48; --p5:#d97706;
+    --p6:#db2777; --p7:#7c3aed; --p8:#059669; --p9:#65a30d; --p10:#ea580c;
+  }
   *{box-sizing:border-box}
   /* body 的漸層是 fixed (只鋪滿 viewport), html 補一層純色底,
      避免內容長過一個畫面時下方露出瀏覽器預設白底 */
   html{background:var(--bg)}
   body{
-    margin:0;background:radial-gradient(1200px 800px at 20% -10%,#16203a 0%,var(--bg) 55%) fixed;
+    margin:0;background:radial-gradient(1200px 800px at 20% -10%,var(--glow) 0%,var(--bg) 55%) fixed;
     color:var(--txt);
     font-family:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -49,15 +108,18 @@
   header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
   h1{font-size:32px;margin:0;letter-spacing:.5px}
   .sub{color:var(--muted);font-size:16px}
-  h2{font-size:20px;margin:48px 0 16px;letter-spacing:1px;color:#cfe0f5;
+  h2{font-size:20px;margin:48px 0 16px;letter-spacing:1px;color:var(--h2);
      border-left:4px solid var(--k3);padding-left:12px}
+  #themeToggle{margin-left:auto;align-self:center;background:var(--panel);color:var(--txt);
+    border:1px solid var(--line);border-radius:20px;padding:6px 14px;cursor:pointer;font:inherit;font-size:14px}
+  #themeToggle:hover{border-color:var(--k3)}
 
   /* legend */
   .legend{display:flex;gap:28px;flex-wrap:wrap;margin:18px 0 10px;
     background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 20px}
   .lgroup{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
   .ltitle{font-size:13px;color:var(--dim);letter-spacing:1px;margin-right:2px}
-  .chip{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;color:#cbd7ea}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;color:var(--chip)}
   .chip i{width:26px;height:4px;border-radius:2px;display:block}
   .chip b{width:13px;height:13px;border-radius:3px;display:block}
 
@@ -67,16 +129,16 @@
   svg{display:block;width:100%;min-width:1560px;height:auto}
   .node{cursor:pointer}
   .node rect.body{fill:var(--panel);stroke-width:1.5}
-  .node.pinned rect.body{stroke-width:3.5;filter:drop-shadow(0 0 7px rgba(255,255,255,.34))}
-  .node .t{font-size:19px;font-weight:700;fill:#f2f7ff}
+  .node.pinned rect.body{stroke-width:3.5;filter:drop-shadow(0 0 7px var(--pinglow))}
+  .node .t{font-size:19px;font-weight:700;fill:var(--strong)}
   .node .s{font-size:14px;fill:var(--muted)}
-  .node .l{font-size:14px;fill:#b9c8de}
-  .bandlabel{font-size:20px;fill:#9fb0c9;font-weight:600}
+  .node .l{font-size:14px;fill:var(--nodel)}
+  .bandlabel{font-size:20px;fill:var(--bandtxt);font-weight:600}
   .bandlabel .ascii{font-size:16px}
-  .bandrect{fill:#ffffff;opacity:.018}
+  .bandrect{fill:var(--bandfill);opacity:var(--bandop)}
   .edge{fill:none;stroke-width:2.1;opacity:.72}
-  .elabel{font-size:13px;fill:#dbe6f5}
-  .elabel-bg{fill:#0a0e1a;opacity:.88;stroke:var(--line);stroke-width:1}
+  .elabel{font-size:13px;fill:var(--elabel)}
+  .elabel-bg{fill:var(--bg);opacity:.88;stroke:var(--line);stroke-width:1}
   svg.focus .edge{opacity:.06}
   svg.focus .node{opacity:.25}
   svg.focus .elabelg{opacity:.08}
@@ -91,18 +153,18 @@
     border-left-width:5px;border-left-style:solid}
   .card h3{margin:0;font-size:18px;letter-spacing:.3px}
   .card .meta{font-size:14px;color:var(--muted);margin:5px 0 9px;font-family:ui-monospace,Menlo,Consolas,monospace}
-  .card p{margin:0 0 11px;font-size:15px;line-height:1.7;color:#c3d1e5}
+  .card p{margin:0 0 11px;font-size:15px;line-height:1.7;color:var(--txt2)}
   .pills{display:flex;gap:7px;flex-wrap:wrap}
   .pill{font-size:12.5px;padding:3px 10px;border-radius:20px;border:1px solid;line-height:1.5}
 
   /* table */
   table{width:100%;border-collapse:collapse;font-size:15px;background:var(--panel2);
     border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  th{background:#182238;color:#a9bcd6;text-align:left;font-weight:600;font-size:14px;
+  th{background:var(--thbg);color:var(--thtxt);text-align:left;font-weight:600;font-size:14px;
     letter-spacing:1px;padding:11px 14px;border-bottom:1px solid var(--line)}
-  td{padding:10px 14px;border-bottom:1px solid #1b2437;color:#c8d5e8;vertical-align:top}
+  td{padding:10px 14px;border-bottom:1px solid var(--tdline);color:var(--tdtxt);vertical-align:top}
   tr:last-child td{border-bottom:none}
-  td.n{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#e6edf7;white-space:nowrap}
+  td.n{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:var(--txt);white-space:nowrap}
   td.p{white-space:nowrap}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
 
@@ -111,9 +173,9 @@
   .flow{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
   .flow h3{margin:0 0 12px;font-size:17px}
   .flow ol{margin:0;padding-left:20px}
-  .flow li{font-size:15px;line-height:1.9;color:#c3d1e5}
+  .flow li{font-size:15px;line-height:1.9;color:var(--txt2)}
   .flow code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;
-    background:#0c1424;border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:#9fd5ff}
+    background:var(--codebg);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--codetxt)}
 </style>
 </head>
 <body>
@@ -122,6 +184,7 @@
   <header>
     <h1>PROJECT 系統架構</h1>
     <span class="sub">N 個 runtime service · N 個基礎設施 · N 個 one-shot job</span>
+    <button id="themeToggle" type="button" title="切換淺色 / 深色主題"></button>
   </header>
 
   <div class="legend">
@@ -364,13 +427,26 @@ document.getElementById('cards').innerHTML=CARDS.map(c=>`
     <h3>${c.n}</h3>
     <div class="meta">${c.m}</div>
     <p>${c.d}</p>
-    <div class="pills">${c.p.map(p=>`<span class="pill" style="color:${PROTO[p].c};border-color:${PROTO[p].c}55;background:${PROTO[p].c}12">${PROTO[p].n}</span>`).join('')}</div>
+    <div class="pills">${c.p.map(p=>`<span class="pill" style="color:${PROTO[p].c};border-color:color-mix(in srgb,${PROTO[p].c} 33%,transparent);background:color-mix(in srgb,${PROTO[p].c} 7%,transparent)">${PROTO[p].n}</span>`).join('')}</div>
   </div>`).join('');
 
 document.getElementById('matrix').innerHTML=M.map(r=>`
   <tr><td class="n">${r[0]}</td><td class="n">${r[1]}</td>
   <td class="p"><span class="dot" style="background:${PROTO[r[2]].c}"></span>${r[3]}</td>
   <td>${r[4]}</td></tr>`).join('');
+
+/* 主題切換. 選擇存在 localStorage, 下次開啟 (head 內的 script) 會沿用 */
+(function(){
+  const root=document.documentElement, btn=document.getElementById('themeToggle'), key='arch-theme';
+  const label=()=>{ btn.textContent = root.dataset.theme==='light' ? '☀ 淺色' : '☾ 深色'; };
+  btn.addEventListener('click',()=>{
+    const next = root.dataset.theme==='light' ? 'dark' : 'light';
+    root.dataset.theme=next;
+    try{ localStorage.setItem(key,next); }catch(e){}
+    label();
+  });
+  label();
+})();
 </script>
 </body>
 </html>

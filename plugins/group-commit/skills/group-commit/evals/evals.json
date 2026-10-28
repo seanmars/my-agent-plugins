@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "我剛完成了一個功能，改了很多東西：新增了 src/auth/login.ts 和 src/auth/refresh.ts（JWT 相關），修改了 src/routes/api.ts（新增 auth route），還改了 README.md（新增使用說明），以及 package.json 和 package-lock.json（新增了 jsonwebtoken 套件）。幫我 commit 這些變更。",
+      "prompt": "我剛完成了一個功能，改了很多東西：新增了 src/auth/login.ts 和 src/auth/refresh.ts（JWT 相關），修改了 src/routes/api.ts（新增 auth route），還改了 README.md（新增使用說明），以及 package.json 和 package-lock.json（新增了 jsonwebtoken 套件）。幫我依功能拆開, 依序 commit 這些變更。",
       "expected_output": "分析所有變更並提出 3 個 commit 的計畫：1) chore(deps): 新增 jsonwebtoken 套件 (必須在 feat(auth) 之前, 因為 auth 程式碼依賴它) 2) feat(auth): 新增 JWT login/refresh 相關檔案 3) docs: 更新 README。等待使用者確認後依序執行 git add 特定檔案 + git commit。",
       "files": []
     },
@@ -15,7 +15,7 @@
     },
     {
       "id": 3,
-      "prompt": "所有改動都是同一個 feature 的，不需要拆分，幫我 commit 就好。我改了 src/payment/checkout.ts, src/payment/cart.ts, src/payment/checkout.test.ts 還有 src/types/payment.ts，全部都是購物車結帳功能。",
+      "prompt": "所有改動都是同一個 feature 的，不需要拆分，用 group-commit 幫我 commit 就好。我改了 src/payment/checkout.ts, src/payment/cart.ts, src/payment/checkout.test.ts 還有 src/types/payment.ts，全部都是購物車結帳功能。",
       "expected_output": "正確識別所有檔案屬於同一個功能群組，建議單一 commit（如 feat(payment): implement checkout cart functionality），不強行拆分，等待使用者確認後執行。",
       "files": []
     },
